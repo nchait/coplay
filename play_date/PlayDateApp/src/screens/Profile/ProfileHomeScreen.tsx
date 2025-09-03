@@ -9,9 +9,21 @@ import {
 } from 'react-native';
 import { extendedTheme } from '../../utils/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const ProfileHomeScreen: React.FC = () => {
   const { state, logout } = useAuth();
+  const { showSuccess } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      showSuccess('Logged out successfully! See you soon! 👋', 3000);
+    } catch (error) {
+      // Logout should always succeed, but just in case
+      await logout();
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -60,7 +72,7 @@ const ProfileHomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>

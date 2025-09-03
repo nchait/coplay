@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
 import { extendedTheme, commonStyles } from '../../utils/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -23,41 +24,63 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     email: '',
     password: '',
     confirmPassword: '',
+    age: '',
+    bio: '',
+    city: '',
   });
   const { register, state } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const handleRegister = async () => {
-    const { firstName, lastName, email, password, confirmPassword } = formData;
+    console.log('Registering...');
+    console.log(formData);
+    const { firstName, lastName, email, password, confirmPassword, age, bio, city } = formData;
 
+    // Validate required fields
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all required fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showError('Password must be at least 6 characters');
+      return;
+    }
+
+    // Validate age if provided
+    const ageNumber = age ? parseInt(age) : 25;
+    if (age && (isNaN(ageNumber) || ageNumber < 18 || ageNumber > 100)) {
+      showError('Please enter a valid age between 18 and 100');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('Please enter a valid email address');
       return;
     }
 
     try {
       await register({
         name: `${firstName} ${lastName}`.trim(),
-        email,
+        email: email.toLowerCase().trim(),
         password,
-        age: 25, // Default age - would be collected in a proper form
-        bio: '', // Would be collected in profile setup
-        city: '', // Would be collected with location permission
-        interests: [], // Would be collected in profile setup
+        age: ageNumber,
+        bio: bio.trim(),
+        city: city.trim(),
+        interests: [], // Will be collected in profile setup later
       });
-      // Registration successful - navigation will be handled by AuthContext
+      // Registration successful - show success toast
+      showSuccess(`Welcome to PlayDate, ${firstName}! 🎉`, 4000);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
-      Alert.alert('Registration Failed', errorMessage);
+      showError(errorMessage, 5000);
     }
   };
 
@@ -140,6 +163,43 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
 
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Text style={styles.label}>Age (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.age}
+                onChangeText={(value) => updateFormData('age', value)}
+                placeholder="25"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Text style={styles.label}>City (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.city}
+                onChangeText={(value) => updateFormData('city', value)}
+                placeholder="Your city"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Bio (Optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={formData.bio}
+              onChangeText={(value) => updateFormData('bio', value)}
+              placeholder="Tell us a bit about yourself..."
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+
           <TouchableOpacity
             style={[styles.registerButton, state.isLoading && styles.disabledButton]}
             onPress={handleRegister}
@@ -216,6 +276,10 @@ const styles = StyleSheet.create({
   input: {
     ...commonStyles.input,
     fontSize: 16,
+  },
+  textArea: {
+    height: 80,
+    paddingTop: 12,
   },
   registerButton: {
     ...commonStyles.button,

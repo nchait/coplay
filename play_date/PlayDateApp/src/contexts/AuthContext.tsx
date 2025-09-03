@@ -28,6 +28,9 @@ interface RegisterData {
   password: string;
   name: string;
   age: number;
+  bio?: string;
+  city?: string;
+  interests?: string[];
 }
 
 // Initial State

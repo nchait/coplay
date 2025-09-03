@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
 import { extendedTheme, commonStyles } from '../../utils/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -19,19 +20,21 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, state } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
     try {
       await login(email, password);
       // Navigation will be handled by the AuthContext/RootNavigator
+      showSuccess('Welcome back! 🎮', 3000);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      Alert.alert('Login Failed', errorMessage);
+      showError(errorMessage, 4000);
     }
   };
 

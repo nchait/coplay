@@ -62,12 +62,19 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
       {/* Footer Section */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.getStartedButton}
+          style={styles.createAccountButton}
+          onPress={() => navigation.navigate('Register')}
+        >
+          <Text style={styles.createAccountButtonText}>Create Account</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.loginButton}
           onPress={() => navigation.navigate('Login')}
         >
-          <Text style={styles.getStartedButtonText}>Get Started</Text>
+          <Text style={styles.loginButtonText}>Already have an account? Sign In</Text>
         </TouchableOpacity>
-        
+
         <Text style={styles.disclaimer}>
           By continuing, you agree to our Terms of Service and Privacy Policy
         </Text>

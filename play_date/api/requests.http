@@ -1,0 +1,350 @@
+### Variables
+@baseUrl = http://localhost:5000
+@contentType = application/json
+
+# Note: After running the login request below, copy the access_token from the response
+# and paste it here to use in protected endpoints
+@authToken = YOUR_TOKEN_HERE
+
+### Welcome endpoint
+GET {{baseUrl}}/
+
+###
+
+### Health check (now includes database status)
+GET {{baseUrl}}/health
+
+###
+
+### ========================================
+### AUTHENTICATION ENDPOINTS
+### ========================================
+
+### Register new user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Alice Johnson",
+  "email": "alice@playdate.com",
+  "password": "alice123",
+  "age": 25,
+  "bio": "Love gaming and meeting new people! Looking for someone to play cooperative games with.",
+  "city": "San Francisco",
+  "latitude": 37.7749,
+  "longitude": -122.4194,
+  "interests": ["gaming", "music", "travel", "puzzles"],
+  "photos": ["https://example.com/photo1.jpg"],
+  "preferences": {
+    "ageRange": {"min": 22, "max": 30},
+    "maxDistance": 50,
+    "gameTypes": ["PuzzleConnect", "GuessAndDraw"]
+  }
+}
+
+###
+
+### Register another user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Bob Smith",
+  "email": "bob@playdate.com",
+  "password": "bob123",
+  "age": 28,
+  "bio": "Puzzle enthusiast and coffee lover. Always up for a challenge!",
+  "city": "New York",
+  "latitude": 40.7128,
+  "longitude": -74.0060,
+  "interests": ["puzzles", "coffee", "books", "hiking"],
+  "photos": ["https://example.com/photo2.jpg"],
+  "preferences": {
+    "ageRange": {"min": 24, "max": 32},
+    "maxDistance": 25,
+    "gameTypes": ["PuzzleConnect", "WordChain"]
+  }
+}
+
+###
+
+### Register user with duplicate email (should fail)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Alice Duplicate",
+  "email": "alice@playdate.com",
+  "age": 26
+}
+
+###
+
+### Register user with missing required fields (should fail)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Incomplete User"
+}
+
+###
+
+### Login user (save token for subsequent requests)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "alice@playdate.com",
+  "password": "alice123"
+}
+
+###
+
+### Login with wrong password (should fail)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "alice@playdate.com",
+  "password": "wrongpassword"
+}
+
+###
+
+### Login with non-existent user (should fail)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "nonexistent@playdate.com",
+  "password": "somepassword"
+}
+
+###
+
+### Login with missing password (should fail)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "alice@playdate.com"
+}
+
+###
+
+### Get current user info (requires authentication)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+###
+
+### ========================================
+### USER MANAGEMENT ENDPOINTS
+### ========================================
+
+### Get all active users
+GET {{baseUrl}}/users
+
+###
+
+### Get user by ID (existing user - replace with actual ID from registration)
+GET {{baseUrl}}/users/1
+
+###
+
+### Get user by ID (non-existent user)
+GET {{baseUrl}}/users/999
+
+###
+
+### Create a new user (alternative to auth/register)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Charlie Brown",
+  "email": "charlie@playdate.com",
+  "age": 30,
+  "bio": "Board game enthusiast and dog lover. Looking for meaningful connections through shared activities.",
+  "city": "Chicago",
+  "latitude": 41.8781,
+  "longitude": -87.6298,
+  "interests": ["board games", "dogs", "cooking", "photography"],
+  "photos": ["https://example.com/photo3.jpg", "https://example.com/photo4.jpg"],
+  "preferences": {
+    "ageRange": {"min": 25, "max": 35},
+    "maxDistance": 30,
+    "gameTypes": ["PuzzleConnect", "GuessAndDraw", "WordChain"]
+  }
+}
+
+###
+
+### Create user with minimal data
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Diana Prince",
+  "email": "diana@playdate.com",
+  "age": 27,
+  "city": "Los Angeles"
+}
+
+###
+
+### Create user with duplicate email (should fail)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Duplicate User",
+  "email": "alice@playdate.com"
+}
+
+###
+
+### Create user with missing required fields (should fail)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Incomplete User"
+}
+
+###
+
+### Update user profile (requires authentication - replace user ID with actual ID from registration)
+PUT {{baseUrl}}/users/1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Alice Johnson Updated",
+  "bio": "Updated bio: Love gaming, music, and meeting new people through cooperative games!",
+  "age": 26,
+  "city": "San Francisco",
+  "latitude": 37.7749,
+  "longitude": -122.4194,
+  "interests": ["gaming", "music", "travel", "puzzles", "cooking"],
+  "photos": ["https://example.com/photo1_updated.jpg", "https://example.com/photo1_new.jpg"],
+  "preferences": {
+    "ageRange": {"min": 23, "max": 32},
+    "maxDistance": 60,
+    "gameTypes": ["PuzzleConnect", "GuessAndDraw", "WordChain"]
+  }
+}
+
+###
+
+### Update user with partial data (only name and bio)
+PUT {{baseUrl}}/users/2
+Content-Type: {{contentType}}
+
+{
+  "name": "Bob Smith Updated",
+  "bio": "Updated: Puzzle master and coffee connoisseur. Let's solve puzzles together!"
+}
+
+###
+
+### Update user interests only
+PUT {{baseUrl}}/users/3
+Content-Type: {{contentType}}
+
+{
+  "interests": ["board games", "dogs", "cooking", "photography", "hiking", "wine tasting"]
+}
+
+###
+
+### Update user with duplicate email (should fail)
+PUT {{baseUrl}}/users/2
+Content-Type: {{contentType}}
+
+{
+  "email": "alice@playdate.com"
+}
+
+###
+
+### Update non-existent user (should fail)
+PUT {{baseUrl}}/users/999
+Content-Type: {{contentType}}
+
+{
+  "name": "Non Existent",
+  "email": "nonexistent@playdate.com"
+}
+
+###
+
+### Soft delete user (deactivate - replace with actual ID)
+DELETE {{baseUrl}}/users/4
+
+###
+
+### Delete non-existent user (should fail)
+DELETE {{baseUrl}}/users/999
+
+###
+
+### Get all users after modifications (should not show deleted users)
+GET {{baseUrl}}/users
+
+###
+
+### ========================================
+### TESTING EDGE CASES
+### ========================================
+
+### Test health endpoint with database connection
+GET {{baseUrl}}/health
+
+###
+
+### Test invalid JSON
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Invalid JSON"
+  "email": "missing-comma@example.com"
+}
+
+###
+
+### Test empty request body
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+### Test very long bio
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Long Bio User",
+  "email": "longbio@playdate.com",
+  "bio": "This is a very long bio that tests the database's ability to handle longer text fields. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+}
+
+###
+
+### Test user with many interests
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Multi Interest User",
+  "email": "manyinterests@playdate.com",
+  "age": 29,
+  "interests": ["gaming", "music", "travel", "puzzles", "cooking", "photography", "hiking", "reading", "movies", "dancing", "art", "sports", "technology", "gardening", "yoga"]
+}
+
+###

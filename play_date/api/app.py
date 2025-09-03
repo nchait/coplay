@@ -80,8 +80,8 @@ def register():
         db.session.add(new_user)
         db.session.commit()
 
-        # Create access token
-        access_token = create_access_token(identity=new_user.id)
+        # Create access token (convert ID to string for JWT)
+        access_token = create_access_token(identity=str(new_user.id))
 
         return jsonify({
             "message": "User registered successfully",
@@ -107,8 +107,8 @@ def login():
         if not user.check_password(data['password']):
             return jsonify({"error": "Invalid email or password"}), 401
 
-        # Create access token
-        access_token = create_access_token(identity=user.id)
+        # Create access token (convert ID to string for JWT)
+        access_token = create_access_token(identity=str(user.id))
 
         return jsonify({
             "message": "Login successful",
@@ -122,7 +122,7 @@ def login():
 @jwt_required()
 def get_current_user():
     try:
-        current_user_id = get_jwt_identity()
+        current_user_id = int(get_jwt_identity())  # Convert string back to int
         user = User.query.filter_by(id=current_user_id, is_active=True).first()
 
         if not user:
@@ -189,7 +189,7 @@ def create_user():
 @jwt_required()
 def update_user(user_id):
     try:
-        current_user_id = get_jwt_identity()
+        current_user_id = int(get_jwt_identity())  # Convert string back to int
 
         # Users can only update their own profile
         if current_user_id != user_id:
@@ -245,7 +245,7 @@ def update_user(user_id):
 @jwt_required()
 def delete_user(user_id):
     try:
-        current_user_id = get_jwt_identity()
+        current_user_id = int(get_jwt_identity())  # Convert string back to int
 
         # Users can only delete their own account
         if current_user_id != user_id:

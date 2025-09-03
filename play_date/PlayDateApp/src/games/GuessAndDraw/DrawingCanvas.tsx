@@ -1,24 +1,15 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   View,
-  PanGestureHandler,
-  PanGestureHandlerGestureEvent,
-  State,
-} from 'react-native-gesture-handler';
-import {
-  Canvas,
-  Path,
-  Skia,
-  useCanvasRef,
-  useTouchHandler,
-} from '@shopify/react-native-skia';
-import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
   Text,
-  View as RNView,
+  PanResponder,
+  PanResponderGestureState,
+  GestureResponderEvent,
 } from 'react-native';
+import Svg, { Path, G } from 'react-native-svg';
 import { extendedTheme } from '../../utils/theme';
 import { DrawingStroke } from '../../types';
 
@@ -58,67 +49,74 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   selectedColor = '#000000',
   selectedWidth = 4,
 }) => {
-  const canvasRef = useCanvasRef();
   const [currentPath, setCurrentPath] = useState<string>('');
   const [currentStroke, setCurrentStroke] = useState<DrawingStroke | null>(null);
   const [activeColor, setActiveColor] = useState(selectedColor);
   const [activeBrushSize, setActiveBrushSize] = useState(selectedWidth);
+  const [isDrawing, setIsDrawing] = useState(false);
 
-  // Convert strokes to Skia paths
+  // Convert strokes to SVG paths
   const createPathFromStroke = useCallback((stroke: DrawingStroke): string => {
     if (stroke.points.length === 0) return '';
-    
+
     let pathString = `M${stroke.points[0].x},${stroke.points[0].y}`;
-    
+
     for (let i = 1; i < stroke.points.length; i++) {
       const point = stroke.points[i];
       pathString += ` L${point.x},${point.y}`;
     }
-    
+
     return pathString;
   }, []);
 
-  // Touch handler for drawing
-  const touchHandler = useTouchHandler({
-    onStart: (touchInfo) => {
-      if (!isDrawingEnabled) return;
-      
-      const { x, y } = touchInfo;
-      const newStroke: DrawingStroke = {
-        points: [{ x, y }],
-        color: activeColor,
-        width: activeBrushSize,
-        timestamp: Date.now(),
-      };
-      
-      setCurrentStroke(newStroke);
-      setCurrentPath(`M${x},${y}`);
-    },
-    
-    onActive: (touchInfo) => {
-      if (!isDrawingEnabled || !currentStroke) return;
-      
-      const { x, y } = touchInfo;
-      const updatedStroke = {
-        ...currentStroke,
-        points: [...currentStroke.points, { x, y }],
-      };
-      
-      setCurrentStroke(updatedStroke);
-      setCurrentPath(prev => `${prev} L${x},${y}`);
-    },
-    
-    onEnd: () => {
-      if (!isDrawingEnabled || !currentStroke) return;
-      
-      // Add the completed stroke
-      onStrokeAdd(currentStroke);
-      
-      // Reset current drawing state
-      setCurrentStroke(null);
-      setCurrentPath('');
-    },
-  });
+  // Pan responder for drawing
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => isDrawingEnabled,
+      onMoveShouldSetPanResponder: () => isDrawingEnabled,
+
+      onPanResponderGrant: (evt: GestureResponderEvent) => {
+        if (!isDrawingEnabled) return;
+
+        const { locationX, locationY } = evt.nativeEvent;
+        const newStroke: DrawingStroke = {
+          points: [{ x: locationX, y: locationY }],
+          color: activeColor,
+          width: activeBrushSize,
+          timestamp: Date.now(),
+        };
+
+        setCurrentStroke(newStroke);
+        setCurrentPath(`M${locationX},${locationY}`);
+        setIsDrawing(true);
+      },
+
+      onPanResponderMove: (evt: GestureResponderEvent) => {
+        if (!isDrawingEnabled || !currentStroke || !isDrawing) return;
+
+        const { locationX, locationY } = evt.nativeEvent;
+        const updatedStroke = {
+          ...currentStroke,
+          points: [...currentStroke.points, { x: locationX, y: locationY }],
+        };
+
+        setCurrentStroke(updatedStroke);
+        setCurrentPath(prev => `${prev} L${locationX},${locationY}`);
+      },
+
+      onPanResponderRelease: () => {
+        if (!isDrawingEnabled || !currentStroke || !isDrawing) return;
+
+        // Add the completed stroke
+        onStrokeAdd(currentStroke);
+
+        // Reset current drawing state
+        setCurrentStroke(null);
+        setCurrentPath('');
+        setIsDrawing(false);
+      },
+    })
+  ).current;
 
   // Clear canvas function
   const clearCanvas = useCallback(() => {
@@ -131,12 +129,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   }, [isDrawingEnabled]);
 
   return (
-    <RNView style={styles.container}>
+    <View style={styles.container}>
       {/* Drawing Tools */}
       {isDrawingEnabled && (
-        <RNView style={styles.toolsContainer}>
+        <View style={styles.toolsContainer}>
           {/* Color Palette */}
-          <RNView style={styles.colorPalette}>
+          <View style={styles.colorPalette}>
             {COLORS.map((color) => (
               <TouchableOpacity
                 key={color}
@@ -148,10 +146,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                 onPress={() => setActiveColor(color)}
               />
             ))}
-          </RNView>
-          
+          </View>
+
           {/* Brush Sizes */}
-          <RNView style={styles.brushSizes}>
+          <View style={styles.brushSizes}>
             {BRUSH_SIZES.map((size) => (
               <TouchableOpacity
                 key={size}
@@ -161,7 +159,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                 ]}
                 onPress={() => setActiveBrushSize(size)}
               >
-                <RNView
+                <View
                   style={[
                     styles.brushPreview,
                     {
@@ -174,66 +172,64 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                 />
               </TouchableOpacity>
             ))}
-          </RNView>
-          
+          </View>
+
           {/* Clear Button */}
           <TouchableOpacity style={styles.clearButton} onPress={clearCanvas}>
             <Text style={styles.clearButtonText}>Clear</Text>
           </TouchableOpacity>
-        </RNView>
+        </View>
       )}
 
       {/* Canvas */}
-      <RNView style={[styles.canvasContainer, { width: canvasWidth, height: canvasHeight }]}>
-        <Canvas
-          ref={canvasRef}
-          style={{ width: canvasWidth, height: canvasHeight }}
-          onTouch={touchHandler}
-        >
-          {/* Render existing strokes */}
-          {strokes.map((stroke, index) => {
-            const pathString = createPathFromStroke(stroke);
-            if (!pathString) return null;
-            
-            const path = Skia.Path.MakeFromSVGString(pathString);
-            if (!path) return null;
-            
-            return (
+      <View
+        style={[styles.canvasContainer, { width: canvasWidth, height: canvasHeight }]}
+        {...panResponder.panHandlers}
+      >
+        <Svg width={canvasWidth} height={canvasHeight} style={styles.svg}>
+          <G>
+            {/* Render existing strokes */}
+            {strokes.map((stroke, index) => {
+              const pathString = createPathFromStroke(stroke);
+              if (!pathString) return null;
+
+              return (
+                <Path
+                  key={`stroke-${index}-${stroke.timestamp}`}
+                  d={pathString}
+                  stroke={stroke.color}
+                  strokeWidth={stroke.width}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              );
+            })}
+
+            {/* Render current stroke being drawn */}
+            {currentPath && currentStroke && (
               <Path
-                key={`stroke-${index}-${stroke.timestamp}`}
-                path={path}
-                color={stroke.color}
-                style="stroke"
-                strokeWidth={stroke.width}
-                strokeCap="round"
-                strokeJoin="round"
+                d={currentPath}
+                stroke={currentStroke.color}
+                strokeWidth={currentStroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
               />
-            );
-          })}
-          
-          {/* Render current stroke being drawn */}
-          {currentPath && currentStroke && (
-            <Path
-              path={Skia.Path.MakeFromSVGString(currentPath)!}
-              color={currentStroke.color}
-              style="stroke"
-              strokeWidth={currentStroke.width}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          )}
-        </Canvas>
-        
+            )}
+          </G>
+        </Svg>
+
         {/* Overlay for disabled state */}
         {!isDrawingEnabled && (
-          <RNView style={styles.disabledOverlay}>
+          <View style={styles.disabledOverlay}>
             <Text style={styles.disabledText}>
               {strokes.length === 0 ? 'Waiting for drawing...' : 'Watch and guess!'}
             </Text>
-          </RNView>
+          </View>
         )}
-      </RNView>
-    </RNView>
+      </View>
+    </View>
   );
 };
 
@@ -305,6 +301,9 @@ const styles = StyleSheet.create({
     borderColor: extendedTheme.colors.border,
     overflow: 'hidden',
     position: 'relative',
+  },
+  svg: {
+    backgroundColor: 'transparent',
   },
   disabledOverlay: {
     position: 'absolute',

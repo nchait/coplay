@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { User, AuthState } from '../types';
 import { authService, tokenManager } from '../services/api';
 import { mapApiUserToUser, mapRegisterDataToApi } from '../services/userMapper';
+import { NetworkDebug } from '../utils/networkDebug';
 
 // Auth Actions
 type AuthAction =
@@ -10,7 +11,8 @@ type AuthAction =
   | { type: 'AUTH_FAILURE'; payload: string }
   | { type: 'LOGOUT' }
   | { type: 'UPDATE_USER'; payload: Partial<User> }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'INITIAL_LOAD_COMPLETE' };
 
 // Auth Context Type
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   clearError: () => void;
+  checkAuthStatus: () => Promise<void>;
 }
 
 // Register Data Type
@@ -37,7 +40,7 @@ interface RegisterData {
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start with loading true for initial auth check
   error: null,
 };
 
@@ -72,6 +75,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'LOGOUT':
       return {
         ...initialState,
+        isLoading: false, // Don't show loading screen after logout
       };
     
     case 'UPDATE_USER':
@@ -85,7 +89,13 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state,
         error: null,
       };
-    
+
+    case 'INITIAL_LOAD_COMPLETE':
+      return {
+        ...state,
+        isLoading: false,
+      };
+
     default:
       return state;
   }
@@ -110,31 +120,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      dispatch({ type: 'AUTH_START' });
+      console.log('AuthContext: Checking for stored token...');
 
       // Check if we have a stored token
       const token = await tokenManager.getToken();
 
       if (!token) {
-        dispatch({ type: 'AUTH_FAILURE', payload: 'No stored authentication found' });
+        // No token found, complete initial load and show auth screens
+        console.log('AuthContext: No stored token found, showing auth screens');
+        dispatch({ type: 'INITIAL_LOAD_COMPLETE' });
         return;
       }
 
-      // Validate token with backend by getting current user
+      console.log('AuthContext: Found stored token, validating with server...');
+
+      // We have a token, validate it with the backend
       const response = await authService.getCurrentUser();
 
+      console.log('AuthContext: Server response:', response);
+
       if (response.data?.user) {
+        // Token is valid, log the user in
+        console.log('AuthContext: Token is valid, logging user in automatically');
         const user = mapApiUserToUser(response.data.user);
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
       } else {
-        // Token is invalid, remove it
+        // Token is invalid, remove it and show auth screens
+        console.log('AuthContext: Token validation failed, removing stored token');
+        console.log('AuthContext: Response error:', response.error);
         await tokenManager.removeToken();
-        dispatch({ type: 'AUTH_FAILURE', payload: response.error || 'Invalid token' });
+        dispatch({ type: 'INITIAL_LOAD_COMPLETE' });
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      await tokenManager.removeToken();
-      dispatch({ type: 'AUTH_FAILURE', payload: 'Failed to check authentication status' });
+
+      // Check if it's a network error vs authentication error
+      if (error instanceof Error && error.message.includes('Network')) {
+        // Network error - keep token but show auth screens for now
+        // User can try again later
+        console.log('Network error during auth check, keeping token');
+        dispatch({ type: 'INITIAL_LOAD_COMPLETE' });
+      } else {
+        // Authentication error - remove invalid token
+        console.log('Authentication error, removing stored token');
+        await tokenManager.removeToken();
+        dispatch({ type: 'INITIAL_LOAD_COMPLETE' });
+      }
     }
   };
 
@@ -150,6 +181,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const user = mapApiUserToUser(response.data.user);
 
         // Token is already stored by authService.login
+        console.log('AuthContext: Login successful, token stored, user logged in');
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
       } else {
         const errorMessage = response.error || 'Login failed';
@@ -193,6 +225,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('AuthContext: Logging out user and clearing stored token');
       // Clear stored token and logout
       await authService.logout();
 
@@ -239,6 +272,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  // Check auth status on app start
+  useEffect(() => {
+    console.log('AuthProvider: Starting initial auth check...');
+    checkAuthStatus();
+  }, []);
+
   const value: AuthContextType = {
     state,
     login,
@@ -246,6 +285,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     updateUser,
     clearError,
+    checkAuthStatus,
   };
 
   return (

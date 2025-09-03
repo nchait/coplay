@@ -1,11 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Configuration
-// For React Native development, we need to use the actual IP address
-// localhost won't work from the mobile simulator/device
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:5000'  // This will work for web, but needs IP for mobile
-  : 'http://localhost:5000'; // Production URL would go here
+// For React Native development with Docker backend
+import { Platform } from 'react-native';
+
+const getApiBaseUrl = () => {
+  if (!__DEV__) {
+    return 'http://localhost:5000'; // Production URL would go here
+  }
+
+  // Development environment with Docker
+  if (Platform.OS === 'android') {
+    // Android emulator: 10.0.2.2 maps to host machine's localhost
+    return 'http://10.0.2.2:5000';
+  } else if (Platform.OS === 'ios') {
+    // iOS simulator: localhost works directly
+    return 'http://localhost:5000';
+  } else {
+    // Web or other platforms
+    return 'http://localhost:5000';
+  }
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const TOKEN_KEY = 'auth_token';
 
 // Types
@@ -103,6 +120,13 @@ class ApiClient {
       const url = `${this.baseURL}${endpoint}`;
       const token = await tokenManager.getToken();
 
+      console.log(`API Request: ${options.method || 'GET'} ${url}`);
+      if (token) {
+        console.log(`API Request: Using token: ${token.substring(0, 20)}...`);
+      } else {
+        console.log('API Request: No token available');
+      }
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -115,29 +139,49 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
+        timeout: 10000, // 10 second timeout
       });
 
+      console.log(`API Response: ${response.status} ${response.statusText}`);
+
       const data = await response.json();
+      console.log('API Response Data:', data);
 
       if (!response.ok) {
         // Handle token expiration
         if (response.status === 401 && token) {
+          console.log('API: Token expired or invalid, removing stored token');
           await tokenManager.removeToken();
           return {
             error: 'Session expired. Please log in again.',
           };
         }
 
+        const errorMessage = data.error || `HTTP ${response.status}: ${response.statusText}`;
+        console.log('API Error:', errorMessage);
         return {
-          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          error: errorMessage,
         };
       }
 
       return { data };
     } catch (error) {
       console.error('API request failed:', error);
+
+      let errorMessage = 'Network request failed';
+
+      if (error instanceof Error) {
+        if (error.message.includes('Network request failed')) {
+          errorMessage = `Cannot connect to server at ${url}. Make sure your server is running.`;
+        } else if (error.message.includes('timeout')) {
+          errorMessage = `Request timeout. Server at ${url} is not responding.`;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       return {
-        error: error instanceof Error ? error.message : 'Network request failed',
+        error: errorMessage,
       };
     }
   }

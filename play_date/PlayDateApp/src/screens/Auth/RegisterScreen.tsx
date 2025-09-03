@@ -32,8 +32,6 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const { showSuccess, showError } = useToast();
 
   const handleRegister = async () => {
-    console.log('Registering...');
-    console.log(formData);
     const { firstName, lastName, email, password, confirmPassword, age, bio, city } = formData;
 
     // Validate required fields

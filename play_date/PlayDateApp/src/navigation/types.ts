@@ -2,6 +2,7 @@ import { GameType } from '../types';
 
 // Root Stack Navigation Types
 export type RootStackParamList = {
+  Loading: undefined;
   Auth: undefined;
   Main: undefined;
   Profile: { userId?: string };

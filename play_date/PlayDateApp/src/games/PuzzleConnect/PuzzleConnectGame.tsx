@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { extendedTheme } from '../../utils/theme';
 import { GameSession, PuzzleConnectData } from '../../types';
 import PuzzleGrid from './PuzzleGrid';
 import ClueSystem from './ClueSystem';
+import PuzzleAnimations from './PuzzleAnimations';
+import { PuzzleValidator } from './PuzzleLogic';
+import { usePuzzleConnect } from './usePuzzleConnect';
 
 interface PuzzleConnectGameProps {
   gameSession: GameSession;
@@ -20,97 +22,68 @@ interface PuzzleConnectGameProps {
   onGameComplete: (success: boolean, score: number) => void;
 }
 
-const GRID_SIZE = 4; // 4x4 grid for MVP
-const GAME_DURATION = 180; // 3 minutes in seconds
-
 const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
   gameSession,
   currentUserId,
   onGameUpdate,
   onGameComplete,
 }) => {
-  const [gameData, setGameData] = useState<PuzzleConnectData>(
-    gameSession.gameData || generateInitialGameData()
-  );
-  const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
-  const [isGameActive, setIsGameActive] = useState(true);
-  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const {
+    gameData,
+    timeRemaining,
+    isGameActive,
+    selectedCell,
+    hintsUsed,
+    completionPercentage,
+    isPlayerA,
+    playerView,
+    lastMoveResult,
+    handleCellPress,
+    handleNumberSelect,
+    handleClueShare,
+    handleGetHint,
+    formatTime,
+  } = usePuzzleConnect({
+    gameSession,
+    currentUserId,
+    onGameUpdate,
+    onGameComplete,
+  });
 
-  // Determine if current user is Player A or B
-  const isPlayerA = gameSession.players[0] === currentUserId;
-  const playerView = isPlayerA ? gameData.playerAView : gameData.playerBView;
+  // Animation states
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showCorrectPlacement, setShowCorrectPlacement] = useState(false);
+  const [showIncorrectPlacement, setShowIncorrectPlacement] = useState(false);
+  const [lastCompletionPercentage, setLastCompletionPercentage] = useState(0);
 
-  // Timer effect
+  // Trigger success animation when game completes
   useEffect(() => {
-    if (!isGameActive || timeRemaining <= 0) return;
+    if (!isGameActive && completionPercentage === 100) {
+      setShowSuccess(true);
+    }
+  }, [isGameActive, completionPercentage]);
 
-    const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          setIsGameActive(false);
-          onGameComplete(false, 0);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isGameActive, timeRemaining, onGameComplete]);
-
-  // Check for puzzle completion
+  // Trigger feedback animations based on move results
   useEffect(() => {
-    if (isPuzzleComplete(gameData)) {
-      setIsGameActive(false);
-      const score = calculateScore(timeRemaining);
-      onGameComplete(true, score);
+    if (lastMoveResult === 'correct') {
+      setShowCorrectPlacement(true);
+      setTimeout(() => setShowCorrectPlacement(false), 600);
+    } else if (lastMoveResult === 'incorrect') {
+      setShowIncorrectPlacement(true);
+      setTimeout(() => setShowIncorrectPlacement(false), 600);
     }
-  }, [gameData, timeRemaining, onGameComplete]);
+  }, [lastMoveResult]);
 
-  const handleCellPress = useCallback((row: number, col: number) => {
-    if (!isGameActive) return;
-
-    setSelectedCell({ row, col });
-  }, [isGameActive]);
-
-  const handleNumberSelect = useCallback((number: number) => {
-    if (!selectedCell || !isGameActive) return;
-
-    const { row, col } = selectedCell;
-    const newGameData = { ...gameData };
-    
-    if (isPlayerA) {
-      newGameData.playerAView = [...gameData.playerAView];
-      newGameData.playerAView[row] = [...newGameData.playerAView[row]];
-      newGameData.playerAView[row][col] = number;
-    } else {
-      newGameData.playerBView = [...gameData.playerBView];
-      newGameData.playerBView[row] = [...newGameData.playerBView[row]];
-      newGameData.playerBView[row][col] = number;
+  // Trigger feedback animations when completion percentage changes
+  useEffect(() => {
+    if (completionPercentage > lastCompletionPercentage) {
+      setShowCorrectPlacement(true);
+      setTimeout(() => setShowCorrectPlacement(false), 600);
     }
+    setLastCompletionPercentage(completionPercentage);
+  }, [completionPercentage, lastCompletionPercentage]);
 
-    setGameData(newGameData);
-    onGameUpdate(newGameData);
-    setSelectedCell(null);
-  }, [selectedCell, isGameActive, gameData, isPlayerA, onGameUpdate]);
 
-  const handleClueShare = useCallback((clue: string) => {
-    if (!isGameActive) return;
-
-    const newGameData = {
-      ...gameData,
-      cluesShared: [...gameData.cluesShared, clue],
-    };
-
-    setGameData(newGameData);
-    onGameUpdate(newGameData);
-  }, [gameData, isGameActive, onGameUpdate]);
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,11 +97,19 @@ const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
         </View>
       </View>
 
-      {/* Game Instructions */}
+      {/* Game Instructions and Progress */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructions}>
           You are Player {isPlayerA ? 'A' : 'B'}. Work together to solve the puzzle!
         </Text>
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressText}>
+            Progress: {Math.round(completionPercentage)}%
+          </Text>
+          <TouchableOpacity style={styles.hintButton} onPress={handleGetHint}>
+            <Text style={styles.hintButtonText}>💡 Hint ({hintsUsed})</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Puzzle Grid */}
@@ -167,85 +148,20 @@ const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
         isGameActive={isGameActive}
         playerRole={isPlayerA ? 'A' : 'B'}
       />
+
+      {/* Animations Overlay */}
+      <PuzzleAnimations
+        showSuccess={showSuccess}
+        showCorrectPlacement={showCorrectPlacement}
+        showIncorrectPlacement={showIncorrectPlacement}
+        completionPercentage={completionPercentage}
+        onAnimationComplete={() => setShowSuccess(false)}
+      />
     </SafeAreaView>
   );
 };
 
-// Helper functions
-function generateInitialGameData(): PuzzleConnectData {
-  // Generate a solution grid
-  const solution = generateSolutionGrid(GRID_SIZE);
-  
-  // Create asymmetric views for each player
-  const playerAView = createPlayerView(solution, 'A');
-  const playerBView = createPlayerView(solution, 'B');
 
-  return {
-    gridSize: GRID_SIZE,
-    playerAView,
-    playerBView,
-    solution,
-    cluesShared: [],
-  };
-}
-
-function generateSolutionGrid(size: number): number[][] {
-  // For MVP, create a simple pattern-based solution
-  const grid: number[][] = [];
-  
-  for (let i = 0; i < size; i++) {
-    grid[i] = [];
-    for (let j = 0; j < size; j++) {
-      // Simple pattern: alternating numbers based on position
-      grid[i][j] = ((i + j) % 4) + 1;
-    }
-  }
-  
-  return grid;
-}
-
-function createPlayerView(solution: number[][], player: 'A' | 'B'): number[][] {
-  const size = solution.length;
-  const view: number[][] = [];
-  
-  for (let i = 0; i < size; i++) {
-    view[i] = [];
-    for (let j = 0; j < size; j++) {
-      // Player A sees some cells, Player B sees different cells
-      const shouldShow = player === 'A' 
-        ? (i + j) % 3 === 0  // Player A sees every 3rd cell in a pattern
-        : (i + j) % 3 === 1; // Player B sees different cells
-      
-      view[i][j] = shouldShow ? solution[i][j] : 0; // 0 means empty
-    }
-  }
-  
-  return view;
-}
-
-function isPuzzleComplete(gameData: PuzzleConnectData): boolean {
-  const { playerAView, playerBView, solution } = gameData;
-  
-  for (let i = 0; i < solution.length; i++) {
-    for (let j = 0; j < solution[i].length; j++) {
-      const playerAValue = playerAView[i][j];
-      const playerBValue = playerBView[i][j];
-      const correctValue = solution[i][j];
-      
-      // Check if either player has the correct value in this cell
-      if (playerAValue !== correctValue && playerBValue !== correctValue) {
-        return false;
-      }
-    }
-  }
-  
-  return true;
-}
-
-function calculateScore(timeRemaining: number): number {
-  // Score based on time remaining (max 1000 points)
-  return Math.round((timeRemaining / GAME_DURATION) * 1000);
-}
 
 const { width } = Dimensions.get('window');
 
@@ -290,6 +206,28 @@ const styles = StyleSheet.create({
     ...extendedTheme.typography.body,
     textAlign: 'center',
     color: extendedTheme.colors.textSecondary,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: extendedTheme.spacing.sm,
+  },
+  progressText: {
+    ...extendedTheme.typography.bodySmall,
+    color: extendedTheme.colors.gameAccent,
+    fontWeight: '600',
+  },
+  hintButton: {
+    backgroundColor: extendedTheme.colors.secondary,
+    paddingHorizontal: extendedTheme.spacing.sm,
+    paddingVertical: extendedTheme.spacing.xs,
+    borderRadius: extendedTheme.borderRadius.sm,
+  },
+  hintButtonText: {
+    ...extendedTheme.typography.bodySmall,
+    color: extendedTheme.colors.background,
+    fontWeight: '600',
   },
   gameArea: {
     flex: 1,

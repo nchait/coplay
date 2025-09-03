@@ -19,7 +19,8 @@ interface UsePuzzleConnectReturn {
   completionPercentage: number;
   isPlayerA: boolean;
   playerView: number[][];
-  
+  lastMoveResult: 'correct' | 'incorrect' | null;
+
   // Actions
   handleCellPress: (row: number, col: number) => void;
   handleNumberSelect: (number: number) => void;
@@ -47,6 +48,7 @@ export const usePuzzleConnect = ({
   const [isGameActive, setIsGameActive] = useState(true);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [lastMoveResult, setLastMoveResult] = useState<'correct' | 'incorrect' | null>(null);
 
   // Determine player role
   const isPlayerA = gameSession.players[0] === currentUserId;
@@ -140,11 +142,12 @@ export const usePuzzleConnect = ({
     onGameUpdate(newGameData);
 
     // Show feedback for correct/incorrect moves
-    if (validation.isCorrect) {
-      // Could add a subtle success animation or sound here
-    } else {
-      // Could add a subtle error indication
-    }
+    setLastMoveResult(validation.isCorrect ? 'correct' : 'incorrect');
+
+    // Clear the feedback after a short delay
+    setTimeout(() => {
+      setLastMoveResult(null);
+    }, 1000);
   }, [selectedCell, isGameActive, gameData, isPlayerA, playerView, onGameUpdate]);
 
   // Handle clue sharing
@@ -209,7 +212,8 @@ export const usePuzzleConnect = ({
     completionPercentage,
     isPlayerA,
     playerView,
-    
+    lastMoveResult,
+
     // Actions
     handleCellPress,
     handleNumberSelect,

@@ -14,6 +14,9 @@ const LoadingScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const dot1Anim = useRef(new Animated.Value(0.4)).current;
+  const dot2Anim = useRef(new Animated.Value(0.4)).current;
+  const dot3Anim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
     // Start animations
@@ -41,10 +44,40 @@ const LoadingScreen: React.FC = () => {
     );
     rotateAnimation.start();
 
+    // Dot animations
+    const createDotAnimation = (dotAnim: Animated.Value, delay: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dotAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dotAnim, {
+            toValue: 0.4,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    const dot1Animation = createDotAnimation(dot1Anim, 0);
+    const dot2Animation = createDotAnimation(dot2Anim, 200);
+    const dot3Animation = createDotAnimation(dot3Anim, 400);
+
+    dot1Animation.start();
+    dot2Animation.start();
+    dot3Animation.start();
+
     return () => {
       rotateAnimation.stop();
+      dot1Animation.stop();
+      dot2Animation.stop();
+      dot3Animation.stop();
     };
-  }, [fadeAnim, scaleAnim, rotateAnim]);
+  }, [fadeAnim, scaleAnim, rotateAnim, dot1Anim, dot2Anim, dot3Anim]);
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -82,9 +115,9 @@ const LoadingScreen: React.FC = () => {
         
         {/* Loading Indicator */}
         <View style={styles.loadingIndicator}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.dotDelay1]} />
-          <View style={[styles.dot, styles.dotDelay2]} />
+          <Animated.View style={[styles.dot, { opacity: dot1Anim }]} />
+          <Animated.View style={[styles.dot, { opacity: dot2Anim }]} />
+          <Animated.View style={[styles.dot, { opacity: dot3Anim }]} />
         </View>
       </Animated.View>
     </View>
@@ -139,13 +172,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: extendedTheme.colors.background,
     marginHorizontal: 4,
-    opacity: 0.4,
-  },
-  dotDelay1: {
-    // Animation delay will be handled via Animated API if needed
-  },
-  dotDelay2: {
-    // Animation delay will be handled via Animated API if needed
   },
 });
 

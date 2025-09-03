@@ -37,11 +37,19 @@ export const usePuzzleConnect = ({
 }: UsePuzzleConnectProps): UsePuzzleConnectReturn => {
   // Initialize game data
   const [gameData, setGameData] = useState<PuzzleConnectData>(() => {
-    return gameSession.gameData || PuzzleGenerator.generatePuzzle({
+    const puzzle = gameSession.gameData || PuzzleGenerator.generatePuzzle({
       gridSize: 4,
       difficulty: 'medium',
       patternType: 'sequence',
     });
+
+    // Console log the solution for debugging
+    console.log('🎯 PUZZLE SOLUTION:');
+    console.log('Grid:', puzzle.solution);
+    console.log('Player A View:', puzzle.playerAView);
+    console.log('Player B View:', puzzle.playerBView);
+
+    return puzzle;
   });
 
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes
@@ -119,7 +127,8 @@ export const usePuzzleConnect = ({
     );
 
     if (!validation.isValid) {
-      Alert.alert('Invalid Move', 'Please select a valid number (1-4).');
+      const maxNumber = gameData.gridSize * gameData.gridSize;
+      Alert.alert('Invalid Move', `Please select a valid number (1-${maxNumber}).`);
       return;
     }
 

@@ -31,7 +31,7 @@ const PuzzleAnimations: React.FC<PuzzleAnimationsProps> = ({
   const successOpacity = useRef(new Animated.Value(0)).current;
   const correctScale = useRef(new Animated.Value(1)).current;
   const incorrectShake = useRef(new Animated.Value(0)).current;
-  const progressWidth = useRef(new Animated.Value(0)).current;
+
   const celebrationY = useRef(new Animated.Value(-50)).current;
 
   // Success animation
@@ -119,15 +119,7 @@ const PuzzleAnimations: React.FC<PuzzleAnimationsProps> = ({
     }
   }, [showIncorrectPlacement, incorrectShake]);
 
-  // Progress animation
-  useEffect(() => {
-    Animated.timing(progressWidth, {
-      toValue: completionPercentage,
-      duration: 500,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
-    }).start();
-  }, [completionPercentage, progressWidth]);
+
 
   // Celebration particles animation
   useEffect(() => {
@@ -152,22 +144,6 @@ const PuzzleAnimations: React.FC<PuzzleAnimationsProps> = ({
 
   return (
     <View style={styles.container} pointerEvents="none">
-      {/* Progress Bar Animation */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBackground}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progressWidth.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
-        </View>
-      </View>
 
       {/* Correct Placement Feedback */}
       {showCorrectPlacement && (
@@ -253,23 +229,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
   },
-  progressContainer: {
-    position: 'absolute',
-    top: 100,
-    left: extendedTheme.spacing.lg,
-    right: extendedTheme.spacing.lg,
-  },
-  progressBackground: {
-    height: 4,
-    backgroundColor: extendedTheme.colors.borderLight,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: extendedTheme.colors.success,
-    borderRadius: 2,
-  },
+
   feedbackContainer: {
     position: 'absolute',
     top: '50%',

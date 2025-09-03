@@ -7,14 +7,29 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { extendedTheme } from '../../utils/theme';
+import { RootStackParamList } from '../../navigation/types';
+import { GameType } from '../../types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const GamesListScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+
   const games = [
-    { id: '1', name: 'Puzzle Connect', icon: '🧩', description: 'Cooperative puzzle solving' },
-    { id: '2', name: 'Guess & Draw', icon: '🎨', description: 'Drawing and guessing game' },
-    { id: '3', name: 'Survival Challenge', icon: '⚡', description: 'Quick reflex challenges' },
+    { id: '1', name: 'Puzzle Connect', icon: '🧩', description: 'Cooperative puzzle solving', gameType: 'PuzzleConnect' as GameType },
+    { id: '2', name: 'Guess & Draw', icon: '🎨', description: 'Drawing and guessing game', gameType: 'GuessAndDraw' as GameType },
+    { id: '3', name: 'Survival Challenge', icon: '⚡', description: 'Quick reflex challenges', gameType: 'SurvivalChallenge' as GameType },
   ];
+
+  const handleGamePress = (gameType: GameType) => {
+    // Create a mock session ID that includes the game type for demo purposes
+    // In a real app, this would come from creating a new game session on the backend
+    const mockSessionId = `demo-session-${gameType}-${Date.now()}`;
+    navigation.navigate('GamePlay', { sessionId: mockSessionId });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -25,7 +40,11 @@ const GamesListScreen: React.FC = () => {
 
       <ScrollView style={styles.content}>
         {games.map((game) => (
-          <TouchableOpacity key={game.id} style={styles.gameCard}>
+          <TouchableOpacity
+            key={game.id}
+            style={styles.gameCard}
+            onPress={() => handleGamePress(game.gameType)}
+          >
             <Text style={styles.gameIcon}>{game.icon}</Text>
             <View style={styles.gameInfo}>
               <Text style={styles.gameName}>{game.name}</Text>

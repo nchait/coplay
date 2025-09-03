@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { extendedTheme } from '../../utils/theme';
 import { GameSession, PuzzleConnectData } from '../../types';
@@ -55,6 +56,9 @@ const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
   const [showCorrectPlacement, setShowCorrectPlacement] = useState(false);
   const [showIncorrectPlacement, setShowIncorrectPlacement] = useState(false);
   const [lastCompletionPercentage, setLastCompletionPercentage] = useState(0);
+
+  // Local selected cell state for modal
+  const [localSelectedCell, setLocalSelectedCell] = useState<{ row: number; col: number } | null>(null);
 
   // Trigger success animation when game completes
   useEffect(() => {
@@ -117,28 +121,15 @@ const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
         <PuzzleGrid
           grid={playerView}
           solution={gameData.solution}
-          selectedCell={selectedCell}
-          onCellPress={handleCellPress}
+          selectedCell={localSelectedCell}
+          onCellPress={(row, col) => {
+            handleCellPress(row, col);
+            setLocalSelectedCell({ row, col });
+          }}
           isPlayerA={isPlayerA}
         />
 
-        {/* Number Selection */}
-        {selectedCell && (
-          <View style={styles.numberSelector}>
-            <Text style={styles.numberSelectorTitle}>Select Number:</Text>
-            <View style={styles.numberGrid}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
-                <TouchableOpacity
-                  key={number}
-                  style={styles.numberButton}
-                  onPress={() => handleNumberSelect(number)}
-                >
-                  <Text style={styles.numberButtonText}>{number}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+
       </View>
 
       {/* Clue System */}
@@ -148,6 +139,42 @@ const PuzzleConnectGame: React.FC<PuzzleConnectGameProps> = ({
         isGameActive={isGameActive}
         playerRole={isPlayerA ? 'A' : 'B'}
       />
+
+      {/* Number Selection Modal */}
+      <Modal
+        visible={localSelectedCell !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLocalSelectedCell(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.numberModal}>
+            <Text style={styles.modalTitle}>
+              Select Number for Cell ({localSelectedCell ? localSelectedCell.row + 1 : 0}, {localSelectedCell ? localSelectedCell.col + 1 : 0})
+            </Text>
+            <View style={styles.numberGrid}>
+              {Array.from({ length: gameData.gridSize * gameData.gridSize }, (_, i) => i + 1).map((number) => (
+                <TouchableOpacity
+                  key={number}
+                  style={styles.numberButton}
+                  onPress={() => {
+                    handleNumberSelect(number);
+                    setLocalSelectedCell(null);
+                  }}
+                >
+                  <Text style={styles.numberButtonText}>{number}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setLocalSelectedCell(null)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Animations Overlay */}
       <PuzzleAnimations
@@ -233,35 +260,57 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: extendedTheme.spacing.lg,
   },
-  numberSelector: {
-    backgroundColor: extendedTheme.colors.surface,
-    borderRadius: extendedTheme.borderRadius.lg,
-    padding: extendedTheme.spacing.md,
-    marginTop: extendedTheme.spacing.md,
-    ...extendedTheme.shadows.sm,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  numberSelectorTitle: {
+  numberModal: {
+    backgroundColor: extendedTheme.colors.surface,
+    borderRadius: extendedTheme.borderRadius.xl,
+    padding: extendedTheme.spacing.xl,
+    margin: extendedTheme.spacing.lg,
+    minWidth: 280,
+    ...extendedTheme.shadows.lg,
+  },
+  modalTitle: {
     ...extendedTheme.typography.h4,
     textAlign: 'center',
-    marginBottom: extendedTheme.spacing.sm,
+    marginBottom: extendedTheme.spacing.lg,
+    color: extendedTheme.colors.text,
   },
   numberGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    marginBottom: extendedTheme.spacing.lg,
   },
   numberButton: {
-    width: 40,
-    height: 40,
+    width: 45,
+    height: 45,
     backgroundColor: extendedTheme.colors.primary,
     borderRadius: extendedTheme.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: extendedTheme.spacing.xs,
+    margin: 4,
+    ...extendedTheme.shadows.sm,
   },
   numberButtonText: {
-    ...extendedTheme.typography.h4,
+    ...extendedTheme.typography.h3,
     color: extendedTheme.colors.background,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    backgroundColor: extendedTheme.colors.borderLight,
+    borderRadius: extendedTheme.borderRadius.md,
+    paddingVertical: extendedTheme.spacing.md,
+    paddingHorizontal: extendedTheme.spacing.lg,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    ...extendedTheme.typography.body,
+    color: extendedTheme.colors.textSecondary,
     fontWeight: '600',
   },
 });

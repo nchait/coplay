@@ -171,8 +171,9 @@ export class PuzzleValidator {
     value: number
   ): { isValid: boolean; isCorrect: boolean } {
     const isCorrect = solution[row][col] === value;
-    const isValid = value >= 1 && value <= solution.length; // Valid range
-    
+    const maxValue = solution.length * solution.length; // For 4x4 grid: 16
+    const isValid = value >= 1 && value <= maxValue;
+
     return { isValid, isCorrect };
   }
 

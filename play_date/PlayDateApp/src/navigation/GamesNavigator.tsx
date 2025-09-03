@@ -2,7 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GamesStackParamList } from './types';
 import GamesListScreen from '../screens/Games/GamesListScreen';
-import { GameLobbyScreen, GamePlayScreen, GameResultsScreen } from '../screens/PlaceholderScreens';
+import GamePlayScreen from '../screens/Games/GamePlayScreen';
+import { GameLobbyScreen, GameResultsScreen } from '../screens/PlaceholderScreens';
 
 const Stack = createNativeStackNavigator<GamesStackParamList>();
 

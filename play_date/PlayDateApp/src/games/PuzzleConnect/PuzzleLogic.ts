@@ -16,9 +16,9 @@ export interface CellInfo {
 export class PuzzleGenerator {
   static generatePuzzle(config: PuzzleConfig): PuzzleConnectData {
     const { gridSize, difficulty, patternType } = config;
-    
+
     let solution: number[][];
-    
+
     switch (patternType) {
       case 'sequence':
         solution = this.generateSequencePuzzle(gridSize);
@@ -36,6 +36,9 @@ export class PuzzleGenerator {
         solution = this.generateSequencePuzzle(gridSize);
     }
 
+    // Add randomization by shuffling the solution
+    solution = this.randomizeGrid(solution);
+
     const { playerAView, playerBView } = this.createAsymmetricViews(
       solution, 
       difficulty
@@ -52,30 +55,40 @@ export class PuzzleGenerator {
 
   private static generateSequencePuzzle(size: number): number[][] {
     const grid: number[][] = [];
-    
+
+    // Add randomization with different starting offsets
+    const startOffset = Math.floor(Math.random() * (size * size));
+    const increment = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+
     for (let i = 0; i < size; i++) {
       grid[i] = [];
       for (let j = 0; j < size; j++) {
-        // Create a sequence pattern: each row increases by 1, wrapping around
-        grid[i][j] = ((i * size + j) % (size * size)) + 1;
+        // Create a sequence pattern with random starting point and increment
+        const baseValue = (i * size + j) * increment + startOffset;
+        grid[i][j] = (baseValue % (size * size)) + 1;
       }
     }
-    
+
     return grid;
   }
 
   private static generateSudokuLikePuzzle(size: number): number[][] {
     const grid: number[][] = [];
-    
-    // For 4x4 grid, use numbers 1-4 with no repeats in rows/columns
+
+    // Add random offset for variety
+    const offset = Math.floor(Math.random() * size);
+
+    // For 4x4 grid, use numbers 1-16 with Latin square-like pattern
     for (let i = 0; i < size; i++) {
       grid[i] = [];
       for (let j = 0; j < size; j++) {
-        // Latin square pattern
-        grid[i][j] = ((i + j) % size) + 1;
+        // Modified Latin square pattern with random offset
+        const baseValue = (i + j + offset) % size;
+        const rowMultiplier = i + 1;
+        grid[i][j] = (baseValue * rowMultiplier) % (size * size) + 1;
       }
     }
-    
+
     return grid;
   }
 
@@ -99,15 +112,23 @@ export class PuzzleGenerator {
 
   private static generateMathPuzzle(size: number): number[][] {
     const grid: number[][] = [];
-    
+
+    // Random mathematical operations for variety
+    const operations = [
+      (i: number, j: number) => (i * size + j + Math.floor(Math.random() * size)) % (size * size) + 1,
+      (i: number, j: number) => ((i + j) * (Math.floor(Math.random() * 3) + 2)) % (size * size) + 1,
+      (i: number, j: number) => (Math.abs(i - j) + i + j + Math.floor(Math.random() * size)) % (size * size) + 1,
+    ];
+
+    const selectedOperation = operations[Math.floor(Math.random() * operations.length)];
+
     for (let i = 0; i < size; i++) {
       grid[i] = [];
       for (let j = 0; j < size; j++) {
-        // Mathematical relationship: sum of coordinates + 1
-        grid[i][j] = ((i + j) % size) + 1;
+        grid[i][j] = selectedOperation(i, j);
       }
     }
-    
+
     return grid;
   }
 
@@ -145,6 +166,83 @@ export class PuzzleGenerator {
     }
 
     return { playerAView, playerBView };
+  }
+
+  private static randomizeGrid(grid: number[][]): number[][] {
+    const size = grid.length;
+    let randomizedGrid = grid.map(row => [...row]); // Deep copy
+
+    // Apply random transformations that preserve the puzzle structure
+    const transformations = [
+      () => this.rotateGrid(randomizedGrid),
+      () => this.flipGridHorizontally(randomizedGrid),
+      () => this.flipGridVertically(randomizedGrid),
+      () => this.shuffleRows(randomizedGrid),
+      () => this.shuffleColumns(randomizedGrid),
+    ];
+
+    // Apply 2-4 random transformations
+    const numTransformations = Math.floor(Math.random() * 3) + 2;
+    for (let i = 0; i < numTransformations; i++) {
+      const randomTransform = transformations[Math.floor(Math.random() * transformations.length)];
+      randomizedGrid = randomTransform();
+    }
+
+    return randomizedGrid;
+  }
+
+  private static rotateGrid(grid: number[][]): number[][] {
+    const size = grid.length;
+    const rotated: number[][] = [];
+
+    for (let i = 0; i < size; i++) {
+      rotated[i] = [];
+      for (let j = 0; j < size; j++) {
+        rotated[i][j] = grid[size - 1 - j][i];
+      }
+    }
+
+    return rotated;
+  }
+
+  private static flipGridHorizontally(grid: number[][]): number[][] {
+    return grid.map(row => [...row].reverse());
+  }
+
+  private static flipGridVertically(grid: number[][]): number[][] {
+    return [...grid].reverse();
+  }
+
+  private static shuffleRows(grid: number[][]): number[][] {
+    const shuffled = [...grid];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  private static shuffleColumns(grid: number[][]): number[][] {
+    const size = grid.length;
+    const shuffled = grid.map(row => [...row]);
+
+    // Create array of column indices and shuffle them
+    const columnIndices = Array.from({ length: size }, (_, i) => i);
+    for (let i = columnIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [columnIndices[i], columnIndices[j]] = [columnIndices[j], columnIndices[i]];
+    }
+
+    // Rearrange columns based on shuffled indices
+    for (let row = 0; row < size; row++) {
+      const newRow: number[] = [];
+      for (let col = 0; col < size; col++) {
+        newRow[col] = grid[row][columnIndices[col]];
+      }
+      shuffled[row] = newRow;
+    }
+
+    return shuffled;
   }
 
   private static shouldCellBeVisible(

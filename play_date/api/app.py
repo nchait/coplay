@@ -1,12 +1,10 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
-from flask_socketio import SocketIO
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from database import db, init_db, User, GameSession, Match
-from websocket_handler import socketio, get_active_sessions
 
 # Load environment variables
 load_dotenv()
@@ -26,9 +24,6 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)  # Token expires in 7
 # Initialize extensions
 jwt = JWTManager(app)
 init_db(app)
-
-# Initialize SocketIO
-socketio.init_app(app, cors_allowed_origins="*")
 
 @app.route('/')
 def hello():
@@ -391,7 +386,18 @@ def update_game_state(session_id):
 @app.route('/games/sessions/active', methods=['GET'])
 def get_active_game_sessions():
     try:
-        active_sessions = get_active_sessions()
+        # Simple implementation without WebSocket
+        sessions = GameSession.query.filter_by(status='waiting').all()
+        active_sessions = {
+            session.id: {
+                'gameType': session.game_type,
+                'players': len(session.players),
+                'maxPlayers': 2,
+                'status': session.status,
+                'createdAt': session.created_at.isoformat() if session.created_at else None
+            }
+            for session in sessions
+        }
         return jsonify({"sessions": active_sessions})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -399,4 +405,4 @@ def get_active_game_sessions():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    socketio.run(app, host='0.0.0.0', port=port, debug=debug)
+    app.run(host='0.0.0.0', port=port, debug=debug)

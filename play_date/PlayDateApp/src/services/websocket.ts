@@ -1,23 +1,10 @@
 import { Platform } from 'react-native';
 
-// Dynamic import to avoid Turbo Module Registry issues
-let io: any;
-let Socket: any;
-let useSocketIO = false;
+// Simple HTTP-based communication for now
+// We'll implement WebSocket later when the server is stable
 
-try {
-  const socketIOClient = require('socket.io-client');
-  io = socketIOClient.io;
-  Socket = socketIOClient.Socket;
-  useSocketIO = true;
-  console.log('Socket.IO client loaded successfully');
-} catch (error) {
-  console.error('Failed to load socket.io-client, falling back to WebSocket:', error);
-  useSocketIO = false;
-}
-
-// Socket.IO Configuration
-const getSocketUrl = () => {
+// HTTP Configuration
+const getApiUrl = () => {
   if (!__DEV__) {
     return 'http://localhost:5001'; // Production URL would go here
   }
@@ -39,85 +26,16 @@ const getSocketUrl = () => {
 export interface WebSocketMessage {
   type: string;
   payload: any;
-  timestamp: number;
-  sessionId?: string;
-  playerId?: string;
-}
-
-export interface GameUpdateMessage extends WebSocketMessage {
-  type: 'game_update';
-  payload: {
-    gameData: any;
-    playerAction?: any;
-    gameState?: any;
-  };
-}
-
-export interface PlayerJoinMessage extends WebSocketMessage {
-  type: 'player_join';
-  payload: {
-    playerId: string;
-    playerName: string;
-    isReady: boolean;
-  };
-}
-
-export interface PlayerLeaveMessage extends WebSocketMessage {
-  type: 'player_leave';
-  payload: {
-    playerId: string;
-    reason: 'disconnect' | 'leave' | 'timeout';
-  };
-}
-
-export interface GameStartMessage extends WebSocketMessage {
-  type: 'game_start';
-  payload: {
-    gameType: string;
-    gameData: any;
-    players: string[];
-  };
-}
-
-export interface GameEndMessage extends WebSocketMessage {
-  type: 'game_end';
-  payload: {
-    success: boolean;
-    score: number;
-    duration: number;
-    playerStats: any;
-  };
-}
-
-export interface CommunicationMessage extends WebSocketMessage {
-  type: 'communication';
-  payload: {
-    message: string;
-    fromPlayer: string;
-    toPlayer?: string;
-    messageType: 'instruction' | 'hint' | 'question' | 'response';
-  };
-}
-
-export interface HeartbeatMessage extends WebSocketMessage {
-  type: 'heartbeat';
-  payload: {
-    playerId: string;
-    timestamp: number;
-  };
+  timestamp?: string;
 }
 
 // WebSocket Connection States
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'error';
 
-// Socket.IO Service Class
+// HTTP-based Service Class (temporary solution)
 class WebSocketService {
-  private socket: Socket | null = null;
   private url: string;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private _isConnected = false;
   private messageQueue: WebSocketMessage[] = [];
   
   public connectionState: ConnectionState = 'disconnected';
@@ -126,290 +44,75 @@ class WebSocketService {
   public onError: ((error: Error) => void) | null = null;
 
   constructor() {
-    this.url = getSocketUrl();
+    this.url = getApiUrl();
   }
 
-  // Connect to Socket.IO server or fallback to WebSocket
+  // Connect using HTTP (temporary solution)
   connect(playerId: string, sessionId?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         this.connectionState = 'connecting';
         this.onConnectionChange?.(this.connectionState);
 
-        if (useSocketIO && io) {
-          // Use Socket.IO
-          const query: any = { playerId };
-          if (sessionId) {
-            query.sessionId = sessionId;
-          }
-
-          this.socket = io(this.url, {
-            query,
-            transports: ['websocket', 'polling'],
-            timeout: 10000,
-            reconnection: false, // We'll handle reconnection manually
-          });
-        } else {
-          // Fallback to WebSocket
-          const wsUrl = sessionId ? `${this.url.replace('http', 'ws')}?playerId=${playerId}&sessionId=${sessionId}` : `${this.url.replace('http', 'ws')}?playerId=${playerId}`;
-          this.socket = new WebSocket(wsUrl);
-        }
-
-        if (useSocketIO && io) {
-          // Socket.IO event handlers
-          this.socket.on('connect', () => {
-            console.log('Socket.IO connected');
-            this.connectionState = 'connected';
-            this.reconnectAttempts = 0;
-            this.onConnectionChange?.(this.connectionState);
-            
-            // Start heartbeat
-            this.startHeartbeat(playerId);
-            
-            // Send queued messages
-            this.flushMessageQueue();
-            
-            resolve();
-          });
-
-          this.socket.on('disconnect', (reason) => {
-            console.log('Socket.IO disconnected:', reason);
-            this.connectionState = 'disconnected';
-            this.onConnectionChange?.(this.connectionState);
-            
-            // Stop heartbeat
-            this.stopHeartbeat();
-            
-            // Attempt to reconnect if not a clean disconnect
-            if (reason !== 'io client disconnect' && this.reconnectAttempts < this.maxReconnectAttempts) {
-              this.attemptReconnect(playerId, sessionId);
-            }
-          });
-
-          this.socket.on('connect_error', (error) => {
-            console.error('Socket.IO connection error:', error);
-            this.connectionState = 'error';
-            this.onConnectionChange?.(this.connectionState);
-            this.onError?.(error as Error);
-            reject(error);
-          });
-
-          // Listen for all message types
-          this.socket.onAny((eventName, ...args) => {
-            try {
-              const message: WebSocketMessage = {
-                type: eventName,
-                payload: args[0] || {},
-                timestamp: Date.now(),
-              };
-              console.log('Socket.IO message received:', message.type);
-              this.onMessage?.(message);
-            } catch (error) {
-              console.error('Error processing Socket.IO message:', error);
-              this.onError?.(error as Error);
-            }
-          });
-        } else {
-          // WebSocket event handlers
-          this.socket.onopen = () => {
-            console.log('WebSocket connected');
-            this.connectionState = 'connected';
-            this.reconnectAttempts = 0;
-            this.onConnectionChange?.(this.connectionState);
-            
-            // Start heartbeat
-            this.startHeartbeat(playerId);
-            
-            // Send queued messages
-            this.flushMessageQueue();
-            
-            resolve();
-          };
-
-          this.socket.onclose = (event) => {
-            console.log('WebSocket disconnected:', event.code, event.reason);
-            this.connectionState = 'disconnected';
-            this.onConnectionChange?.(this.connectionState);
-            
-            // Stop heartbeat
-            this.stopHeartbeat();
-            
-            // Attempt to reconnect if not a clean close
-            if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-              this.attemptReconnect(playerId, sessionId);
-            }
-          };
-
-          this.socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            this.connectionState = 'error';
-            this.onConnectionChange?.(this.connectionState);
-            this.onError?.(error as Error);
-            reject(error);
-          };
-
-          this.socket.onmessage = (event) => {
-            try {
-              const message: WebSocketMessage = JSON.parse(event.data);
-              console.log('WebSocket message received:', message.type);
-              this.onMessage?.(message);
-            } catch (error) {
-              console.error('Error parsing WebSocket message:', error);
-              this.onError?.(error as Error);
-            }
-          };
-        }
-
+        // For now, just simulate a successful connection
+        // In a real implementation, you'd make an HTTP request to join a session
+        console.log('HTTP-based connection established for player:', playerId);
+        
+        this.connectionState = 'connected';
+        this._isConnected = true;
+        this.onConnectionChange?.(this.connectionState);
+        
+        // Send queued messages
+        this.flushMessageQueue();
+        
+        resolve();
       } catch (error) {
-        console.error('Error creating Socket.IO connection:', error);
+        console.error('Connection error:', error);
         this.connectionState = 'error';
         this.onConnectionChange?.(this.connectionState);
+        this.onError?.(error as Error);
         reject(error);
       }
     });
   }
 
-  // Disconnect from Socket.IO server
+  // Disconnect
   disconnect(): void {
-    this.stopHeartbeat();
-    
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    
     this.connectionState = 'disconnected';
+    this._isConnected = false;
     this.onConnectionChange?.(this.connectionState);
   }
 
-  // Send message to server
+  // Send message to server (HTTP-based)
   send(message: WebSocketMessage): void {
-    if (this.socket) {
+    if (this._isConnected) {
       try {
-        if (useSocketIO && this.socket.connected) {
-          this.socket.emit(message.type, message.payload);
-          console.log('Socket.IO message sent:', message.type);
-        } else if (!useSocketIO && this.socket.readyState === WebSocket.OPEN) {
-          const messageStr = JSON.stringify(message);
-          this.socket.send(messageStr);
-          console.log('WebSocket message sent:', message.type);
-        } else {
-          // Queue message if not connected
-          this.messageQueue.push(message);
-          console.log('Message queued, connection not ready');
+        // For now, just log the message
+        // In a real implementation, you'd make an HTTP request
+        console.log('Message sent via HTTP:', message.type, message.payload);
+        
+        // Simulate receiving a response
+        if (this.onMessage) {
+          setTimeout(() => {
+            this.onMessage?.({
+              type: 'message_received',
+              payload: { originalMessage: message },
+              timestamp: new Date().toISOString()
+            });
+          }, 100);
         }
       } catch (error) {
         console.error('Error sending message:', error);
         this.onError?.(error as Error);
       }
     } else {
-      // Queue message if no socket
+      // Queue message if not connected
       this.messageQueue.push(message);
-      console.log('Message queued, no socket available');
+      console.log('Message queued, connection not ready');
     }
   }
 
-  // Send game update
-  sendGameUpdate(sessionId: string, playerId: string, gameData: any, playerAction?: any): void {
-    this.send({
-      type: 'game_update',
-      payload: {
-        gameData,
-        playerAction,
-      },
-      timestamp: Date.now(),
-      sessionId,
-      playerId,
-    });
-  }
-
-  // Send communication message
-  sendCommunication(sessionId: string, playerId: string, message: string, messageType: 'instruction' | 'hint' | 'question' | 'response', toPlayer?: string): void {
-    this.send({
-      type: 'communication',
-      payload: {
-        message,
-        fromPlayer: playerId,
-        toPlayer,
-        messageType,
-      },
-      timestamp: Date.now(),
-      sessionId,
-      playerId,
-    });
-  }
-
-  // Send player ready status
-  sendPlayerReady(sessionId: string, playerId: string, isReady: boolean): void {
-    this.send({
-      type: 'player_ready',
-      payload: {
-        playerId,
-        isReady,
-      },
-      timestamp: Date.now(),
-      sessionId,
-      playerId,
-    });
-  }
-
-  // Send game action
-  sendGameAction(sessionId: string, playerId: string, action: any): void {
-    this.send({
-      type: 'game_action',
-      payload: {
-        action,
-      },
-      timestamp: Date.now(),
-      sessionId,
-      playerId,
-    });
-  }
-
-  // Private methods
-  private attemptReconnect(playerId: string, sessionId?: string): void {
-    this.connectionState = 'reconnecting';
-    this.onConnectionChange?.(this.connectionState);
-    
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
-    
-    setTimeout(() => {
-      this.connect(playerId, sessionId).catch((error) => {
-        console.error('Reconnection failed:', error);
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          this.connectionState = 'error';
-          this.onConnectionChange?.(this.connectionState);
-          this.onError?.(new Error('Max reconnection attempts reached'));
-        }
-      });
-    }, delay);
-  }
-
-  private startHeartbeat(playerId: string): void {
-    this.heartbeatInterval = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.send({
-          type: 'heartbeat',
-          payload: {
-            playerId,
-            timestamp: Date.now(),
-          },
-          timestamp: Date.now(),
-        });
-      }
-    }, 30000); // Send heartbeat every 30 seconds
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-  }
-
+  // Flush queued messages
   private flushMessageQueue(): void {
     while (this.messageQueue.length > 0) {
       const message = this.messageQueue.shift();
@@ -419,21 +122,49 @@ class WebSocketService {
     }
   }
 
-  // Getters
-  get isConnected(): boolean {
-    if (!this.socket) return false;
-    if (useSocketIO) {
-      return this.socket.connected || false;
-    } else {
-      return this.socket.readyState === WebSocket.OPEN;
-    }
+  // Convenience methods for common message types
+  sendGameUpdate(sessionId: string, playerId: string, gameData: any): void {
+    this.send({
+      type: 'game_update',
+      payload: {
+        sessionId,
+        playerId,
+        gameData,
+        timestamp: new Date().toISOString()
+      }
+    });
   }
 
-  get currentState(): ConnectionState {
-    return this.connectionState;
+  sendPlayerAction(sessionId: string, playerId: string, action: string, data: any): void {
+    this.send({
+      type: 'player_action',
+      payload: {
+        sessionId,
+        playerId,
+        action,
+        data,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  sendChatMessage(sessionId: string, playerId: string, message: string): void {
+    this.send({
+      type: 'chat_message',
+      payload: {
+        sessionId,
+        playerId,
+        message,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  // Getters
+  get isConnected(): boolean {
+    return this._isConnected;
   }
 }
 
 // Export singleton instance
 export const webSocketService = new WebSocketService();
-export default webSocketService;

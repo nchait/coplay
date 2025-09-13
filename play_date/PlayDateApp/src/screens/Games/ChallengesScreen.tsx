@@ -120,9 +120,7 @@ const ChallengesScreen: React.FC = () => {
   const confirmResponse = (challenge: Challenge, response: 'accept' | 'decline') => {
     console.log('Confirming response:', { challenge, response });
     const action = response === 'accept' ? 'accept' : 'decline';
-
       handleRespondToChallenge(challenge, response)
-
   };
 
   const handleJoinLobby = (challenge: Challenge) => {

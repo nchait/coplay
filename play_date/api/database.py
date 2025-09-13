@@ -93,16 +93,22 @@ class User(db.Model):
 class GameSession(db.Model):
     __tablename__ = 'game_sessions'
     
-    id = db.Column(db.String(36), primary_key=True)  # UUID
+    id = db.Column(db.Integer, primary_key=True)  # Changed to Integer for easier referencing
     match_id = db.Column(db.String(36), nullable=True)  # Optional match ID
     game_type = db.Column(db.String(50), nullable=False)  # PuzzleConnect, GuessAndDraw, etc.
-    players = db.Column(db.JSON, nullable=False)  # Array of player IDs
-    status = db.Column(db.String(20), default='waiting', nullable=False)  # waiting, active, completed, abandoned
+    players = db.Column(db.JSON, nullable=True)  # Array of player IDs (nullable for pending challenges)
+    status = db.Column(db.String(20), default='waiting', nullable=False)  # pending, waiting, active, completed, abandoned, declined
     game_data = db.Column(db.JSON, nullable=True)  # Game-specific data
     result = db.Column(db.JSON, nullable=True)     # Game result data
+    challenger_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # User who sent the challenge
+    challenged_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # User who was challenged
     started_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    challenger = db.relationship('User', foreign_keys=[challenger_id], backref='challenges_sent')
+    challenged = db.relationship('User', foreign_keys=[challenged_id], backref='challenges_received')
     
     def to_dict(self):
         """Convert game session object to dictionary"""

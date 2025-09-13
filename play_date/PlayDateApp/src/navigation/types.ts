@@ -42,6 +42,8 @@ export type MatchesStackParamList = {
 // Games Stack Types
 export type GamesStackParamList = {
   GamesList: undefined;
+  UserSelection: { gameType: GameType; gameName: string };
+  Challenges: undefined;
   GameLobby: { matchId: string; gameType: GameType };
   GamePlay: { sessionId: string };
   GameResults: { sessionId: string };

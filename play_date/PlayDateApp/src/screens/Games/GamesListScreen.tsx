@@ -27,17 +27,25 @@ const GamesListScreen: React.FC = () => {
     { id: '6', name: 'Color Code Lock', icon: '🎨', description: 'Color sequence memory', gameType: 'ColorCodeLock' as GameType },
   ];
 
-  const handleGamePress = (gameType: GameType) => {
-    // Navigate to game lobby for matchmaking
-    const mockMatchId = `match-${gameType}-${Date.now()}`;
-    navigation.navigate('GameLobby', { matchId: mockMatchId, gameType });
+  const handleGamePress = (gameType: GameType, gameName: string) => {
+    // Navigate to user selection screen for challenging
+    navigation.navigate('UserSelection', { gameType, gameName });
+  };
+
+  const handleViewChallenges = () => {
+    navigation.navigate('Challenges');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Games</Text>
-        <Text style={styles.subtitle}>Choose a game to play</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Games</Text>
+          <TouchableOpacity style={styles.challengesButton} onPress={handleViewChallenges}>
+            <Text style={styles.challengesButtonText}>Challenges</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subtitle}>Choose a game to challenge someone</Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -45,7 +53,7 @@ const GamesListScreen: React.FC = () => {
           <TouchableOpacity
             key={game.id}
             style={styles.gameCard}
-            onPress={() => handleGamePress(game.gameType)}
+            onPress={() => handleGamePress(game.gameType, game.name)}
           >
             <Text style={styles.gameIcon}>{game.icon}</Text>
             <View style={styles.gameInfo}>
@@ -68,6 +76,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: extendedTheme.spacing.lg,
     paddingTop: extendedTheme.spacing.lg,
     paddingBottom: extendedTheme.spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: extendedTheme.spacing.xs,
+  },
+  challengesButton: {
+    backgroundColor: extendedTheme.colors.primary,
+    paddingHorizontal: extendedTheme.spacing.md,
+    paddingVertical: extendedTheme.spacing.sm,
+    borderRadius: extendedTheme.borderRadius.md,
+  },
+  challengesButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   title: {
     ...extendedTheme.typography.h1,

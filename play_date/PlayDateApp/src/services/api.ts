@@ -130,7 +130,7 @@ class ApiClient {
         console.log('API Request: No token available');
       }
 
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...options.headers,
       };
@@ -142,7 +142,6 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
-        timeout: 10000, // 10 second timeout
       });
 
       console.log(`API Response: ${response.status} ${response.statusText}`);
@@ -175,9 +174,9 @@ class ApiClient {
 
       if (error instanceof Error) {
         if (error.message.includes('Network request failed')) {
-          errorMessage = `Cannot connect to server at ${url}. Make sure your server is running.`;
+          errorMessage = `Cannot connect to server. Make sure your server is running.`;
         } else if (error.message.includes('timeout')) {
-          errorMessage = `Request timeout. Server at ${url} is not responding.`;
+          errorMessage = `Request timeout. Server is not responding.`;
         } else {
           errorMessage = error.message;
         }
@@ -263,6 +262,124 @@ export const userService = {
   async deleteUser(id: number): Promise<ApiResponse<{ message: string }>> {
     return apiClient.delete<{ message: string }>(`/users/${id}`);
   },
+};
+
+// Challenge Service
+export const challengeService = {
+  async getAllUsers(): Promise<ApiResponse<{ users: Array<{
+    id: number;
+    name: string;
+    email: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  }> }>> {
+    return apiClient.get<{ users: Array<{
+      id: number;
+      name: string;
+      email: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    }> }>('/users');
+  },
+
+  async sendChallenge(challengedUserId: number, gameType: string): Promise<ApiResponse<{
+    message: string;
+    sessionId: number;
+    challengedUser: {
+      id: number;
+      name: string;
+    };
+  }>> {
+    return apiClient.post<{
+      message: string;
+      sessionId: number;
+      challengedUser: {
+        id: number;
+        name: string;
+      };
+    }>('/games/challenge', {
+      challengedUserId,
+      gameType
+    });
+  },
+
+  async respondToChallenge(sessionId: number, response: 'accept' | 'decline'): Promise<ApiResponse<{
+    message: string;
+    sessionId?: number;
+    gameType?: string;
+  }>> {
+    return apiClient.post<{
+      message: string;
+      sessionId?: number;
+      gameType?: string;
+    }>(`/games/challenge/${sessionId}/respond`, {
+      response
+    });
+  },
+
+  async getPendingChallenges(): Promise<ApiResponse<{
+    sentChallenges: Array<{
+      sessionId: number;
+      gameType: string;
+      isSent: boolean;
+      challenger: {
+        id: number;
+        username: string;
+      } | null;
+      challenged: {
+        id: number;
+        username: string;
+      } | null;
+      createdAt: string;
+    }>;
+    receivedChallenges: Array<{
+      sessionId: number;
+      gameType: string;
+      isSent: boolean;
+      challenger: {
+        id: number;
+        username: string;
+      } | null;
+      challenged: {
+        id: number;
+        username: string;
+      } | null;
+      createdAt: string;
+    }>;
+  }>> {
+    return apiClient.get<{
+      sentChallenges: Array<{
+        sessionId: number;
+        gameType: string;
+        isSent: boolean;
+        challenger: {
+          id: number;
+          name: string;
+        } | null;
+        challenged: {
+          id: number;
+          name: string;
+        } | null;
+        createdAt: string;
+      }>;
+      receivedChallenges: Array<{
+        sessionId: number;
+        gameType: string;
+        isSent: boolean;
+        challenger: {
+          id: number;
+          name: string;
+        } | null;
+        challenged: {
+          id: number;
+          name: string;
+        } | null;
+        createdAt: string;
+      }>;
+    }>('/games/challenges/pending');
+  }
 };
 
 // Health Check

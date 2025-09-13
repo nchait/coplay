@@ -402,6 +402,173 @@ def get_active_game_sessions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/users', methods=['GET'])
+@jwt_required()
+def get_all_users():
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Get all users except the current user
+        users = User.query.filter(User.id != current_user_id).all()
+        
+        user_list = []
+        for user in users:
+            user_list.append({
+                'id': user.id,
+                'name': user.name,
+                'email': user.email,
+                'isOnline': True,  # For now, assume all users are online
+                'lastSeen': user.created_at.isoformat() if user.created_at else None
+            })
+        
+        return jsonify({"users": user_list})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/challenge', methods=['POST'])
+@jwt_required()
+def send_game_challenge():
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        challenged_user_id = data.get('challengedUserId')
+        game_type = data.get('gameType')
+        
+        if not challenged_user_id or not game_type:
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        # Check if challenged user exists
+        challenged_user = User.query.get(challenged_user_id)
+        if not challenged_user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Check if there's already a pending challenge between these users
+        existing_challenge = GameSession.query.filter(
+            GameSession.challenger_id == current_user_id,
+            GameSession.challenged_id == challenged_user_id,
+            GameSession.status == 'pending'
+        ).first()
+        
+        if existing_challenge:
+            return jsonify({"error": "Challenge already sent"}), 400
+        
+        # Create a new game session with pending status
+        game_session = GameSession(
+            game_type=game_type,
+            status='pending',
+            challenger_id=current_user_id,
+            challenged_id=challenged_user_id
+        )
+        
+        db.session.add(game_session)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Challenge sent successfully",
+            "sessionId": game_session.id,
+            "challengedUser": {
+                "id": challenged_user.id,
+                "name": challenged_user.name
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/challenge/<int:session_id>/respond', methods=['POST'])
+@jwt_required()
+def respond_to_challenge(session_id):
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        response = data.get('response')  # 'accept' or 'decline'
+        
+        if response not in ['accept', 'decline']:
+            return jsonify({"error": "Invalid response. Must be 'accept' or 'decline'"}), 400
+        
+        # Find the game session
+        game_session = GameSession.query.get(session_id)
+        if not game_session:
+            return jsonify({"error": "Game session not found"}), 404
+        
+        # Check if current user is the challenged user
+        if game_session.challenged_id != current_user_id:
+            return jsonify({"error": "Unauthorized"}), 403
+        
+        # Check if session is still pending
+        if game_session.status != 'pending':
+            return jsonify({"error": "Challenge already responded to"}), 400
+        
+        if response == 'accept':
+            # Accept the challenge - create the actual game session
+            game_session.status = 'waiting'
+            game_session.players = [game_session.challenger_id, game_session.challenged_id]
+            
+            db.session.commit()
+            
+            return jsonify({
+                "message": "Challenge accepted",
+                "sessionId": game_session.id,
+                "gameType": game_session.game_type
+            })
+        else:
+            # Decline the challenge
+            game_session.status = 'declined'
+            db.session.commit()
+            
+            return jsonify({
+                "message": "Challenge declined"
+            })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/challenges/pending', methods=['GET'])
+@jwt_required()
+def get_pending_challenges():
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Get challenges sent by current user
+        sent_challenges = GameSession.query.filter(
+            GameSession.challenger_id == current_user_id,
+            GameSession.status == 'pending'
+        ).all()
+        
+        # Get challenges received by current user
+        received_challenges = GameSession.query.filter(
+            GameSession.challenged_id == current_user_id,
+            GameSession.status == 'pending'
+        ).all()
+        
+        def format_challenge(challenge, is_sent=False):
+            challenger = User.query.get(challenge.challenger_id)
+            challenged = User.query.get(challenge.challenged_id)
+            
+            return {
+                'sessionId': challenge.id,
+                'gameType': challenge.game_type,
+                'isSent': is_sent,
+                'challenger': {
+                    'id': challenger.id,
+                    'name': challenger.name
+                } if challenger else None,
+                'challenged': {
+                    'id': challenged.id,
+                    'name': challenged.name
+                } if challenged else None,
+                'createdAt': challenge.created_at.isoformat() if challenge.created_at else None
+            }
+        
+        return jsonify({
+            "sentChallenges": [format_challenge(c, True) for c in sent_challenges],
+            "receivedChallenges": [format_challenge(c, False) for c in received_challenges]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'

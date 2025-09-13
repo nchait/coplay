@@ -2,6 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GamesStackParamList } from './types';
 import GamesListScreen from '../screens/Games/GamesListScreen';
+import UserSelectionScreen from '../screens/Games/UserSelectionScreen';
+import ChallengesScreen from '../screens/Games/ChallengesScreen';
 import GameLobbyScreen from '../screens/Games/GameLobbyScreen';
 import GamePlayScreen from '../screens/Games/GamePlayScreen';
 import { GameResultsScreen } from '../screens/PlaceholderScreens';
@@ -17,6 +19,24 @@ const GamesNavigator: React.FC = () => {
       }}
     >
       <Stack.Screen name="GamesList" component={GamesListScreen} />
+      <Stack.Screen 
+        name="UserSelection" 
+        component={UserSelectionScreen}
+        options={{
+          headerShown: true,
+          title: 'Select Player',
+          headerBackTitleVisible: false,
+        }}
+      />
+      <Stack.Screen 
+        name="Challenges" 
+        component={ChallengesScreen}
+        options={{
+          headerShown: true,
+          title: 'Game Challenges',
+          headerBackTitleVisible: false,
+        }}
+      />
       <Stack.Screen 
         name="GameLobby" 
         component={GameLobbyScreen}

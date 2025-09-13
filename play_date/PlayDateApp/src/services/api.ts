@@ -379,6 +379,42 @@ export const challengeService = {
         createdAt: string;
       }>;
     }>('/games/challenges/pending');
+  },
+
+  async getAcceptedChallenges(): Promise<ApiResponse<{
+    acceptedChallenges: Array<{
+      sessionId: number;
+      gameType: string;
+      isSent: boolean;
+      challenger: {
+        id: number;
+        name: string;
+      } | null;
+      challenged: {
+        id: number;
+        name: string;
+      } | null;
+      createdAt: string;
+      status: string;
+    }>;
+  }>> {
+    return apiClient.get<{
+      acceptedChallenges: Array<{
+        sessionId: number;
+        gameType: string;
+        isSent: boolean;
+        challenger: {
+          id: number;
+          name: string;
+        } | null;
+        challenged: {
+          id: number;
+          name: string;
+        } | null;
+        createdAt: string;
+        status: string;
+      }>;
+    }>('/games/challenges/accepted');
   }
 };
 

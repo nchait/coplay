@@ -10,6 +10,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { GamesStackParamList } from '../../navigation/types';
 import { challengeService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -27,10 +29,13 @@ interface Challenge {
     name: string;
   } | null;
   createdAt: string;
+  status?: string;
 }
 
+type NavigationProp = NativeStackNavigationProp<GamesStackParamList>;
+
 const ChallengesScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const { state } = useAuth();
   const { showToast } = useToast();
   
@@ -38,9 +43,11 @@ const ChallengesScreen: React.FC = () => {
     sentChallenges: Challenge[];
     receivedChallenges: Challenge[];
   }>({ sentChallenges: [], receivedChallenges: [] });
+  const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [responding, setResponding] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('pending');
 
   useEffect(() => {
     loadChallenges();
@@ -49,12 +56,21 @@ const ChallengesScreen: React.FC = () => {
   const loadChallenges = async () => {
     try {
       setLoading(true);
-      const response = await challengeService.getPendingChallenges();
+      const [pendingResponse, acceptedResponse] = await Promise.all([
+        challengeService.getPendingChallenges(),
+        challengeService.getAcceptedChallenges()
+      ]);
       
-      if (response.data) {
-        setChallenges(response.data);
+      if (pendingResponse.data) {
+        setChallenges(pendingResponse.data);
       } else {
-        showToast('Failed to load challenges', 'error');
+        showToast('Failed to load pending challenges', 'error');
+      }
+
+      if (acceptedResponse.data) {
+        setAcceptedChallenges(acceptedResponse.data.acceptedChallenges);
+      } else {
+        showToast('Failed to load accepted challenges', 'error');
       }
     } catch (error) {
       console.error('Error loading challenges:', error);
@@ -72,9 +88,11 @@ const ChallengesScreen: React.FC = () => {
 
   const handleRespondToChallenge = async (challenge: Challenge, response: 'accept' | 'decline') => {
     try {
+      console.log('Responding to challenge:', { sessionId: challenge.sessionId, response });
       setResponding(challenge.sessionId);
       
       const apiResponse = await challengeService.respondToChallenge(challenge.sessionId, response);
+      console.log('API Response:', apiResponse);
       
       if (apiResponse.data) {
         if (response === 'accept') {
@@ -88,7 +106,8 @@ const ChallengesScreen: React.FC = () => {
         // Reload challenges to update the list
         await loadChallenges();
       } else {
-        showToast(apiResponse.message || 'Failed to respond to challenge', 'error');
+        console.log('API Error:', apiResponse.error);
+        showToast(apiResponse.error || apiResponse.message || 'Failed to respond to challenge', 'error');
       }
     } catch (error) {
       console.error('Error responding to challenge:', error);
@@ -114,6 +133,14 @@ const ChallengesScreen: React.FC = () => {
     );
   };
 
+  const handleJoinLobby = (challenge: Challenge) => {
+    // Navigate to game lobby with the session ID
+    navigation.navigate('GameLobby', { 
+      matchId: challenge.sessionId.toString(), 
+      gameType: challenge.gameType as any
+    });
+  };
+
   const renderChallenge = ({ item }: { item: Challenge }) => (
     <View style={styles.challengeItem}>
       <View style={styles.challengeInfo}>
@@ -129,7 +156,7 @@ const ChallengesScreen: React.FC = () => {
         </Text>
       </View>
       
-      {!item.isSent && (
+      {activeTab === 'pending' && !item.isSent && (
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.actionButton, styles.acceptButton]}
@@ -153,15 +180,25 @@ const ChallengesScreen: React.FC = () => {
         </View>
       )}
       
-      {item.isSent && (
+      {activeTab === 'pending' && item.isSent && (
         <View style={styles.sentStatus}>
           <Text style={styles.sentStatusText}>Sent</Text>
         </View>
+      )}
+
+      {activeTab === 'accepted' && (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.joinButton]}
+          onPress={() => handleJoinLobby(item)}
+        >
+          <Text style={styles.joinButtonText}>Join Lobby</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
 
   const allChallenges = [...challenges.sentChallenges, ...challenges.receivedChallenges];
+  const currentData = activeTab === 'pending' ? allChallenges : acceptedChallenges;
 
   if (loading) {
     return (
@@ -177,12 +214,34 @@ const ChallengesScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Game Challenges</Text>
         <Text style={styles.subtitle}>
-          {challenges.sentChallenges.length} sent, {challenges.receivedChallenges.length} received
+          {activeTab === 'pending' 
+            ? `${challenges.sentChallenges.length} sent, ${challenges.receivedChallenges.length} received`
+            : `${acceptedChallenges.length} accepted challenges`
+          }
         </Text>
       </View>
 
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
+          onPress={() => setActiveTab('pending')}
+        >
+          <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>
+            Pending
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'accepted' && styles.activeTab]}
+          onPress={() => setActiveTab('accepted')}
+        >
+          <Text style={[styles.tabText, activeTab === 'accepted' && styles.activeTabText]}>
+            Accepted
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={allChallenges}
+        data={currentData}
         keyExtractor={(item) => item.sessionId.toString()}
         renderItem={renderChallenge}
         refreshControl={
@@ -191,7 +250,9 @@ const ChallengesScreen: React.FC = () => {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No pending challenges</Text>
+            <Text style={styles.emptyText}>
+              {activeTab === 'pending' ? 'No pending challenges' : 'No accepted challenges'}
+            </Text>
             <TouchableOpacity onPress={loadChallenges} style={styles.retryButton}>
               <Text style={styles.retryButtonText}>Refresh</Text>
             </TouchableOpacity>
@@ -327,6 +388,39 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  joinButton: {
+    backgroundColor: '#007AFF',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

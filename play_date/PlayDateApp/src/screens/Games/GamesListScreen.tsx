@@ -22,13 +22,15 @@ const GamesListScreen: React.FC = () => {
     { id: '1', name: 'Puzzle Connect', icon: '🧩', description: 'Cooperative puzzle solving', gameType: 'PuzzleConnect' as GameType },
     { id: '2', name: 'Guess & Draw', icon: '🎨', description: 'Drawing and guessing game', gameType: 'GuessAndDraw' as GameType },
     { id: '3', name: 'Survival Challenge', icon: '⚡', description: 'Quick reflex challenges', gameType: 'SurvivalChallenge' as GameType },
+    { id: '4', name: 'Circuit Swap', icon: '🔌', description: 'Wire connection puzzle', gameType: 'CircuitSwap' as GameType },
+    { id: '5', name: 'Mirror Maze', icon: '🧭', description: 'Navigate shifting maze', gameType: 'MirrorMaze' as GameType },
+    { id: '6', name: 'Color Code Lock', icon: '🎨', description: 'Color sequence memory', gameType: 'ColorCodeLock' as GameType },
   ];
 
   const handleGamePress = (gameType: GameType) => {
-    // Create a mock session ID that includes the game type for demo purposes
-    // In a real app, this would come from creating a new game session on the backend
-    const mockSessionId = `demo-session-${gameType}-${Date.now()}`;
-    navigation.navigate('GamePlay', { sessionId: mockSessionId });
+    // Navigate to game lobby for matchmaking
+    const mockMatchId = `match-${gameType}-${Date.now()}`;
+    navigation.navigate('GameLobby', { matchId: mockMatchId, gameType });
   };
 
   return (

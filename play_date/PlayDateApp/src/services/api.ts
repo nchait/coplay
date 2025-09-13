@@ -6,19 +6,22 @@ import { Platform } from 'react-native';
 
 const getApiBaseUrl = () => {
   if (!__DEV__) {
-    return 'http://localhost:5000'; // Production URL would go here
+    return 'http://localhost:5001'; // Production URL would go here
   }
 
   // Development environment with Docker
   if (Platform.OS === 'android') {
     // Android emulator: 10.0.2.2 maps to host machine's localhost
-    return 'http://10.0.2.2:5000';
+    // Android physical device: use computer's IP address
+    return 'http://10.0.2.2:5001';
   } else if (Platform.OS === 'ios') {
     // iOS simulator: localhost works directly
-    return 'http://localhost:5000';
+    // iOS physical device: use computer's IP address
+    // Note: For physical device, replace with your computer's IP
+    return 'http://192.168.2.114:5001';
   } else {
     // Web or other platforms
-    return 'http://localhost:5000';
+    return 'http://localhost:5001';
   }
 };
 

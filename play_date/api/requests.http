@@ -1,5 +1,5 @@
 ### Variables
-@baseUrl = http://localhost:5000
+@baseUrl = http://localhost:5001
 @contentType = application/json
 
 # Note: After running the login request below, copy the access_token from the response

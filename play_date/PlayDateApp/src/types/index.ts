@@ -50,7 +50,15 @@ export interface MatchCandidate {
 }
 
 // Game Types
-export type GameType = 'PuzzleConnect' | 'GuessAndDraw' | 'SurvivalChallenge';
+export type GameType = 
+  | 'PuzzleConnect' 
+  | 'GuessAndDraw' 
+  | 'SurvivalChallenge'
+  | 'CircuitSwap'      // Dual Minds: Circuit Swap
+  | 'MirrorMaze'       // Dual Minds: Mirror Maze
+  | 'ColorCodeLock'    // Dual Minds: Color Code Lock
+  | 'BridgeBuilders'   // Dual Minds: Bridge Builders
+  | 'EchoesOfSound';   // Dual Minds: Echoes of Sound
 
 export interface GameSession {
   id: string;
@@ -117,6 +125,138 @@ export interface Obstacle {
   height: number;
   speed: number;
   type: 'static' | 'moving';
+}
+
+// Dual Minds Mini-Game Data Types
+
+// Circuit Swap Game Data
+export interface CircuitSwapData {
+  circuitSchematic: CircuitNode[];
+  wireConnections: WireConnection[];
+  switchStates: SwitchState[];
+  completedSections: string[];
+  timeRemaining: number;
+  playerARole: 'schematic_viewer';
+  playerBRole: 'wire_manipulator';
+}
+
+export interface CircuitNode {
+  id: string;
+  x: number;
+  y: number;
+  type: 'power_source' | 'switch' | 'output' | 'junction';
+  connections: string[];
+  isVisibleToPlayerA: boolean;
+  isVisibleToPlayerB: boolean;
+}
+
+export interface WireConnection {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  isConnected: boolean;
+  color: string;
+  position: { x: number; y: number };
+}
+
+export interface SwitchState {
+  id: string;
+  isOn: boolean;
+  position: { x: number; y: number };
+}
+
+// Mirror Maze Game Data
+export interface MirrorMazeData {
+  mazeLayout: MazeCell[][];
+  playerPosition: { x: number; y: number };
+  wallPositions: WallPosition[];
+  exitPosition: { x: number; y: number };
+  hintsRemaining: number;
+  timeRemaining: number;
+  playerARole: 'map_viewer';
+  playerBRole: 'maze_navigator';
+}
+
+export interface MazeCell {
+  x: number;
+  y: number;
+  hasWall: boolean;
+  isExit: boolean;
+  isStart: boolean;
+  isVisibleToPlayerA: boolean;
+  isVisibleToPlayerB: boolean;
+}
+
+export interface WallPosition {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMoving: boolean;
+  moveDirection?: 'horizontal' | 'vertical';
+  moveSpeed?: number;
+}
+
+// Color Code Lock Game Data
+export interface ColorCodeLockData {
+  correctSequence: string[];
+  currentInput: string[];
+  attemptsRemaining: number;
+  timeRemaining: number;
+  hintLevel: number;
+  playerARole: 'sequence_viewer';
+  playerBRole: 'button_presser';
+}
+
+// Bridge Builders Game Data
+export interface BridgeBuildersData {
+  bridgePieces: BridgePiece[];
+  bridgeState: BridgeState;
+  playerPositions: { [userId: string]: { x: number; y: number } };
+  stabilityScore: number;
+  attemptsLeft: number;
+  timeRemaining: number;
+  playerARole: 'piece_manipulator';
+  playerBRole: 'bridge_tester';
+}
+
+export interface BridgePiece {
+  id: string;
+  type: 'beam' | 'support' | 'platform';
+  position: { x: number; y: number };
+  rotation: number;
+  isPlaced: boolean;
+  isStable: boolean;
+  canBeMovedByPlayerA: boolean;
+  canBeTestedByPlayerB: boolean;
+}
+
+export interface BridgeState {
+  isComplete: boolean;
+  isStable: boolean;
+  completionPercentage: number;
+  weakPoints: string[];
+}
+
+// Echoes of Sound Game Data
+export interface EchoesOfSoundData {
+  melodySequence: Note[];
+  currentInput: Note[];
+  timeRemaining: number;
+  accuracyScore: number;
+  hintLevel: number;
+  playerARole: 'melody_listener';
+  playerBRole: 'note_player';
+}
+
+export interface Note {
+  id: string;
+  pitch: string; // C, D, E, F, G, A, B
+  octave: number;
+  duration: number; // in milliseconds
+  isPlayed: boolean;
+  isCorrect: boolean;
 }
 
 // Chat Types

@@ -6,8 +6,6 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   Profile: { userId?: string };
-  GameLobby: { matchId: string; gameType: GameType };
-  GamePlay: { sessionId: string };
   Chat: { matchId: string };
 };
 

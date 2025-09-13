@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from database import db, init_db, User, GameSession, Match
+from websocket_handler import socketio, get_active_sessions
 
 # Load environment variables
 load_dotenv()
@@ -24,6 +26,9 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)  # Token expires in 7
 # Initialize extensions
 jwt = JWTManager(app)
 init_db(app)
+
+# Initialize SocketIO
+socketio.init_app(app, cors_allowed_origins="*")
 
 @app.route('/')
 def hello():
@@ -264,7 +269,134 @@ def delete_user(user_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+# Game Session Management Endpoints
+@app.route('/games/sessions', methods=['POST'])
+@jwt_required()
+def create_game_session():
+    try:
+        current_user_id = int(get_jwt_identity())
+        data = request.get_json()
+        
+        if not data or 'gameType' not in data:
+            return jsonify({"error": "Game type is required"}), 400
+        
+        # Create new game session
+        new_session = GameSession(
+            match_id=data.get('matchId', f'match-{current_user_id}'),
+            game_type=data['gameType'],
+            players=[str(current_user_id)],
+            status='waiting',
+            game_data=data.get('gameData', {})
+        )
+        
+        db.session.add(new_session)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Game session created successfully",
+            "session": new_session.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/sessions/<session_id>', methods=['GET'])
+@jwt_required()
+def get_game_session(session_id):
+    try:
+        session = GameSession.query.filter_by(id=session_id).first()
+        if not session:
+            return jsonify({"error": "Game session not found"}), 404
+        
+        return jsonify({"session": session.to_dict()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/sessions/<session_id>/join', methods=['POST'])
+@jwt_required()
+def join_game_session(session_id):
+    try:
+        current_user_id = int(get_jwt_identity())
+        session = GameSession.query.filter_by(id=session_id).first()
+        
+        if not session:
+            return jsonify({"error": "Game session not found"}), 404
+        
+        if len(session.players) >= 2:
+            return jsonify({"error": "Game session is full"}), 400
+        
+        if str(current_user_id) not in session.players:
+            session.players.append(str(current_user_id))
+            db.session.commit()
+        
+        return jsonify({
+            "message": "Joined game session successfully",
+            "session": session.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/sessions/<session_id>/leave', methods=['POST'])
+@jwt_required()
+def leave_game_session(session_id):
+    try:
+        current_user_id = int(get_jwt_identity())
+        session = GameSession.query.filter_by(id=session_id).first()
+        
+        if not session:
+            return jsonify({"error": "Game session not found"}), 404
+        
+        if str(current_user_id) in session.players:
+            session.players.remove(str(current_user_id))
+            db.session.commit()
+        
+        return jsonify({"message": "Left game session successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/sessions/<session_id>/state', methods=['PUT'])
+@jwt_required()
+def update_game_state(session_id):
+    try:
+        current_user_id = int(get_jwt_identity())
+        session = GameSession.query.filter_by(id=session_id).first()
+        
+        if not session:
+            return jsonify({"error": "Game session not found"}), 404
+        
+        if str(current_user_id) not in session.players:
+            return jsonify({"error": "You are not part of this game session"}), 403
+        
+        data = request.get_json()
+        if not data or 'gameData' not in data:
+            return jsonify({"error": "Game data is required"}), 400
+        
+        # Update game data
+        session.game_data = data['gameData']
+        if data.get('status'):
+            session.status = data['status']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Game state updated successfully",
+            "session": session.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/games/sessions/active', methods=['GET'])
+def get_active_game_sessions():
+    try:
+        active_sessions = get_active_sessions()
+        return jsonify({"sessions": active_sessions})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    socketio.run(app, host='0.0.0.0', port=port, debug=debug)

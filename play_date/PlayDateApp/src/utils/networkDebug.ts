@@ -57,15 +57,15 @@ export const NetworkDebug = {
     const suggestions: string[] = [];
     
     if (platform === 'android') {
-      suggestions.push('For Android Emulator, use http://10.0.2.2:5000');
-      suggestions.push('For Android Device, use http://YOUR_COMPUTER_IP:5000');
+      suggestions.push('For Android Emulator, use http://10.0.2.2:5001');
+      suggestions.push('For Android Device, use http://YOUR_COMPUTER_IP:5001');
     } else if (platform === 'ios') {
-      suggestions.push('For iOS Simulator, use http://localhost:5000');
-      suggestions.push('For iOS Device, use http://YOUR_COMPUTER_IP:5000');
+      suggestions.push('For iOS Simulator, use http://localhost:5001');
+      suggestions.push('For iOS Device, use http://YOUR_COMPUTER_IP:5001');
     }
     
-    suggestions.push('Make sure your server is running on port 5000');
-    suggestions.push('Check if your computer firewall allows connections on port 5000');
+    suggestions.push('Make sure your server is running on port 5001');
+    suggestions.push('Check if your computer firewall allows connections on port 5001');
     
     return {
       platform,

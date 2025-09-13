@@ -17,6 +17,7 @@ import { GameSession, GameType, PuzzleConnectData, GuessAndDrawData, SurvivalCha
 import { PuzzleConnectGame } from '../../games/PuzzleConnect';
 import { GuessAndDrawGame } from '../../games/GuessAndDraw';
 import { SurvivalChallengeGame } from '../../games/SurvivalChallenge';
+import { CircuitSwapGame, MirrorMazeGame, ColorCodeLockGame } from '../../games/DualMinds';
 
 type GamePlayScreenRouteProp = RouteProp<RootStackParamList, 'GamePlay'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -53,6 +54,12 @@ const GamePlayScreen: React.FC = () => {
       mockGameSession.gameType = 'GuessAndDraw';
     } else if (sessionId.includes('SurvivalChallenge')) {
       mockGameSession.gameType = 'SurvivalChallenge';
+    } else if (sessionId.includes('CircuitSwap')) {
+      mockGameSession.gameType = 'CircuitSwap';
+    } else if (sessionId.includes('MirrorMaze')) {
+      mockGameSession.gameType = 'MirrorMaze';
+    } else if (sessionId.includes('ColorCodeLock')) {
+      mockGameSession.gameType = 'ColorCodeLock';
     }
 
     setGameSession(mockGameSession);
@@ -108,6 +115,12 @@ const GamePlayScreen: React.FC = () => {
         return <GuessAndDrawGame {...commonProps} />;
       case 'SurvivalChallenge':
         return <SurvivalChallengeGame {...commonProps} />;
+      case 'CircuitSwap':
+        return <CircuitSwapGame {...commonProps} />;
+      case 'MirrorMaze':
+        return <MirrorMazeGame {...commonProps} />;
+      case 'ColorCodeLock':
+        return <ColorCodeLockGame {...commonProps} />;
       default:
         return (
           <View style={styles.errorContainer}>

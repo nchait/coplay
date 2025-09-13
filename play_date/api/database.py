@@ -94,9 +94,9 @@ class GameSession(db.Model):
     __tablename__ = 'game_sessions'
     
     id = db.Column(db.String(36), primary_key=True)  # UUID
-    player1_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    player2_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    match_id = db.Column(db.String(36), nullable=True)  # Optional match ID
     game_type = db.Column(db.String(50), nullable=False)  # PuzzleConnect, GuessAndDraw, etc.
+    players = db.Column(db.JSON, nullable=False)  # Array of player IDs
     status = db.Column(db.String(20), default='waiting', nullable=False)  # waiting, active, completed, abandoned
     game_data = db.Column(db.JSON, nullable=True)  # Game-specific data
     result = db.Column(db.JSON, nullable=True)     # Game result data
@@ -104,23 +104,19 @@ class GameSession(db.Model):
     completed_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
-    # Relationships
-    player1 = db.relationship('User', foreign_keys=[player1_id], backref='games_as_player1')
-    player2 = db.relationship('User', foreign_keys=[player2_id], backref='games_as_player2')
-    
     def to_dict(self):
         """Convert game session object to dictionary"""
         return {
             'id': self.id,
-            'player1_id': self.player1_id,
-            'player2_id': self.player2_id,
-            'game_type': self.game_type,
+            'matchId': self.match_id,
+            'gameType': self.game_type,
+            'players': self.players or [],
             'status': self.status,
-            'game_data': self.game_data or {},
+            'gameData': self.game_data or {},
             'result': self.result or {},
-            'started_at': self.started_at.isoformat() if self.started_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'startedAt': self.started_at.isoformat() if self.started_at else None,
+            'completedAt': self.completed_at.isoformat() if self.completed_at else None,
+            'createdAt': self.created_at.isoformat() if self.created_at else None
         }
     
     def __repr__(self):

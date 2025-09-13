@@ -118,19 +118,11 @@ const ChallengesScreen: React.FC = () => {
   };
 
   const confirmResponse = (challenge: Challenge, response: 'accept' | 'decline') => {
+    console.log('Confirming response:', { challenge, response });
     const action = response === 'accept' ? 'accept' : 'decline';
-    const message = response === 'accept' 
-      ? `Accept challenge from ${challenge.challenger?.name}?`
-      : `Decline challenge from ${challenge.challenger?.name}?`;
-    
-    Alert.alert(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Challenge`,
-      message,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: action.charAt(0).toUpperCase() + action.slice(1), onPress: () => handleRespondToChallenge(challenge, response) },
-      ]
-    );
+
+      handleRespondToChallenge(challenge, response)
+
   };
 
   const handleJoinLobby = (challenge: Challenge) => {

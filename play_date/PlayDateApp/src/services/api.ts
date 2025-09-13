@@ -326,11 +326,11 @@ export const challengeService = {
       isSent: boolean;
       challenger: {
         id: number;
-        username: string;
+        name: string;
       } | null;
       challenged: {
         id: number;
-        username: string;
+        name: string;
       } | null;
       createdAt: string;
     }>;
@@ -340,11 +340,11 @@ export const challengeService = {
       isSent: boolean;
       challenger: {
         id: number;
-        username: string;
+        name: string;
       } | null;
       challenged: {
         id: number;
-        username: string;
+        name: string;
       } | null;
       createdAt: string;
     }>;

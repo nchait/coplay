@@ -31,7 +31,7 @@ interface Challenge {
 
 const ChallengesScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { state } = useAuth();
   const { showToast } = useToast();
   
   const [challenges, setChallenges] = useState<{
@@ -50,7 +50,8 @@ const ChallengesScreen: React.FC = () => {
     try {
       setLoading(true);
       const response = await challengeService.getPendingChallenges();
-      if (response.success && response.data) {
+      
+      if (response.data) {
         setChallenges(response.data);
       } else {
         showToast('Failed to load challenges', 'error');
@@ -75,7 +76,7 @@ const ChallengesScreen: React.FC = () => {
       
       const apiResponse = await challengeService.respondToChallenge(challenge.sessionId, response);
       
-      if (apiResponse.success && apiResponse.data) {
+      if (apiResponse.data) {
         if (response === 'accept') {
           showToast('Challenge accepted! Starting game...', 'success');
           // Navigate to game lobby or game screen

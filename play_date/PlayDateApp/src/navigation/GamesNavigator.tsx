@@ -41,9 +41,7 @@ const GamesNavigator: React.FC = () => {
         name="GameLobby" 
         component={GameLobbyScreen}
         options={{
-          headerShown: true,
-          title: 'Game Lobby',
-          headerBackTitleVisible: false,
+          headerShown: false,
         }}
       />
       <Stack.Screen 
